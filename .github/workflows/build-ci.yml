@@ -20,7 +20,7 @@ jobs:
       - name: Autogen
         run: cd mednafen && ./autogen.sh
       - name: Configure
-        run: CPPFLAGS="-DUNICODE=1 -D_UNICODE=1 -DPCEDEVEL_FLAC_DLL" LDFLAGS="-fstack-protector -static-libstdc++" mednafen/configure --host=x86_64-w64-mingw32 --enable-threads=win32 --disable-alsa --disable-jack --disable-apple2 --disable-gb --disable-gba --disable-nes --disable-sasplay --disable-sms --disable-snes --disable-snes-faust --disable-ssfplay --disable-nls --disable-fancy-scalers
+        run: CPPFLAGS="-DUNICODE=1 -D_UNICODE=1 -DPCEDEVEL_FLAC_DLL" LDFLAGS="-fstack-protector -static-libstdc++" mednafen/configure --host=x86_64-w64-mingw32 --enable-threads=win32 --disable-alsa --disable-jack --disable-apple2 --disable-gb --disable-gba --disable-nes --disable-sasplay --disable-sms --disable-snes --disable-snes-faust --disable-ssfplay --disable-nls --disable-fancy-scalers 
       - name: Build
         run: make -j$(nproc)
       - name: Package artifact
