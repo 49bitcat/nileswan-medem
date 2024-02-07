@@ -37,6 +37,7 @@
 #include "rtc.h"
 #include "eeprom.h"
 #include "debug.h"
+#include "nileswan.h"
 
 namespace MDFN_IEN_WSWAN
 {
@@ -203,10 +204,7 @@ static const DLEntry Developers[] =
 
 static bool TestMagic(GameFile* gf)
 {
- if(gf->ext != "ws" && gf->ext != "wsc" && gf->ext != "wsr")
-  return false;
-
- if(gf->stream->size() < 65536)
+ if(gf->ext != "ws" && gf->ext != "wsc" && gf->ext != "wsr" && gf->ext != "ipl0")
   return false;
 
  return true;
@@ -252,18 +250,14 @@ static void Load(GameFile* gf)
   const uint64 fp_in_size = gf->stream->size();
   uint32 real_rom_size;
 
-  if(fp_in_size < 65536)
-  {
-   throw MDFN_Error(0, _("ROM image is too small."));
-  }
-
   if(fp_in_size > 64 * 1024 * 1024)
   {
    throw MDFN_Error(0, _("ROM image is too large."));
   }
 
-  real_rom_size = (fp_in_size + 0xFFFF) & ~0xFFFF;
-  rom_size = round_up_pow2(real_rom_size);
+  // real_rom_size = (fp_in_size + 0xFFFF) & ~0xFFFF;
+  real_rom_size = fp_in_size;
+  rom_size = real_rom_size < 65536 ? 65536 : round_up_pow2(real_rom_size);
 
   wsCartROM = new uint8[rom_size];
   memset(wsCartROM, 0, rom_size);
@@ -314,7 +308,7 @@ static void Load(GameFile* gf)
    }
   }
 
-  MDFN_printf(_("%s     %uKiB\n"), IsWW ? "FLASH:" : "ROM:  ", real_rom_size / 1024);
+  MDFN_printf(_("ROM:       %uB (%uB)\n"), real_rom_size, rom_size);
   md5_context md5;
   md5.starts();
   md5.update(wsCartROM, rom_size);
@@ -393,6 +387,11 @@ static void Load(GameFile* gf)
   {
    if(header[7] & 0x1)
     MDFNGameInfo->rotated = MDFN_ROTATE90;
+  }
+
+  if(gf->ext == "ipl0")
+  {
+    nileswan_init();
   }
 
   MDFNMP_Init(16384, (1 << 20) / 1024);

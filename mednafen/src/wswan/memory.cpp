@@ -31,6 +31,7 @@
 #include <mednafen/FileStream.h>
 #include <time.h>
 #include <trio/trio.h>
+#include "nileswan.h"
 
 namespace MDFN_IEN_WSWAN
 {
@@ -86,6 +87,9 @@ static INLINE void WriteMem(uint32 A, uint8 V)
 
  offset = A & 0xffff;
  bank = (A>>16) & 0xF;
+
+ if (bank > 0 && nileswan_is_active())
+  return nileswan_cart_write(A, V);
 
  //printf("WriteA: %08x %02x --- %02x %02x %02x %02x\n", A, V, BankSelector[0], BankSelector[1], BankSelector[2], BankSelector[3]);
 
@@ -152,6 +156,8 @@ static INLINE uint8 ReadMem(uint32 A)
 
  offset = A & 0xFFFF;
  bank = (A >> 16) & 0xF;
+ if (bank > 0 && nileswan_is_active())
+  return nileswan_cart_read(A, false);
   
  switch(bank)
  {
@@ -281,6 +287,9 @@ static INLINE uint8 ReadPort(uint32 number)
 {
   number &= 0xFF;
 
+  if (number >= 0xC0 && nileswan_is_active())
+    return nileswan_io_read(number, false);
+
   if((number >= 0x80 && number <= 0x9F) || (number == 0x6A) || (number == 0x6B))
    return(WSwan_SoundRead(number));
   else if(number <= 0x3F || (number >= 0xA2 && number <= 0xAF) || (number == 0x60))
@@ -346,6 +355,12 @@ template<bool WW>
 static INLINE void WritePort(uint32 IOPort, uint8 V)
 {
  IOPort &= 0xFF;
+
+  if (IOPort >= 0xC0 && nileswan_is_active())
+  {
+    nileswan_io_write(IOPort, V);
+    return;
+  }
 
 	if((IOPort >= 0x80 && IOPort <= 0x9F) || (IOPort == 0x6A) || (IOPort == 0x6B))
 	{
@@ -526,6 +541,9 @@ static void GetAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
   while(Length--)
   {
    Address &= 0xFFFFF;
+   if (Address >= 0x10000 && nileswan_is_active())
+     { *Buffer = nileswan_cart_read(Address, true); }
+   else
    *Buffer = IsWW ? WSwan_readmem20_WW(Address) : WSwan_readmem20(Address);
    Address++;
    Buffer++;
@@ -618,7 +636,9 @@ static void PutAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
    offset = Address & 0xFFFF;
    bank = (Address >> 16) & 0xF;
   
-   switch(bank)
+   if (bank > 0 && nileswan_is_active())
+     { nileswan_cart_write(Address, *Buffer); }
+   else switch(bank)
    {
     case 0:  wsRAM[offset & (wsRAMSize - 1)] = *Buffer;
 	     WSWan_TCacheInvalidByAddr(offset & (wsRAMSize - 1));
