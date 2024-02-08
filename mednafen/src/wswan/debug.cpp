@@ -453,6 +453,17 @@ static const RegType MiscRegs[] =
  { 0x8000 | INT_GSREG_ISTATUS,          4,      "IrqStatus",    "Interrupt Status", 1 },
  { 0x8000 | INT_GSREG_IENABLE,          4,      "IrqEnable",    "Interrupt Enable", 1 },
  { 0x8000 | INT_GSREG_IVECTORBASE,      3,      "IrqVectors",   "Interrupt Vector Base", 1 },
+
+ { 0, 0, "---NILE SWAN---", "", 0xFFFF },
+ { 0x2D0,                               3,      "SramSelect",   "SRAM Bank Selector for 64KiB bank 0x1", 2 },
+ { 0x2D2,                               3,      "Rom0Select",   "ROM Bank Selector for 64KiB bank 0x2", 2 },
+ { 0x2D4,                               3,      "Rom1Select",   "ROM Bank Selector for 64KiB bank 0x3", 2 },
+ { 0x1C0,                               3,      "RomLSelect",   "ROM Bank Base Selector for 64KiB banks 0x4-0xF", 1 },
+ { 0x2E0,                               3,      "SpiControl",   "", 2 },
+ { 0x1E2,                               3,      "PwrControl",   "", 1 },
+ { 0x1E3,                               3,      "IrqControl",   "", 1 },
+ { 0x2E4,                               5,      "BankMask",   "", 2 },
+
  { 0, 0, "---------------", "", 0xFFFF },
  { 0, 0, "", "", 0 },
 };

@@ -695,6 +695,11 @@ uint32 WSwan_MemoryGetRegister(const unsigned int id, char *special, const uint3
 {
  uint32 ret = 0;
 
+ if (id >= 0x200)
+  { ret = nileswan_io_read(id & 0xFF, true) | (nileswan_io_read((id + 1) & 0xFF, true) << 8); }
+ else if (id >= 0x100)
+  { ret = nileswan_io_read(id & 0xFF, true); }
+ else
  switch(id)
  {
   case MEMORY_GSREG_ROMBBSLCT:
@@ -728,6 +733,10 @@ uint32 WSwan_MemoryGetRegister(const unsigned int id, char *special, const uint3
 
 void WSwan_MemorySetRegister(const unsigned int id, uint32 value)
 {
+ if (id >= 0x200)
+  { nileswan_io_write(id & 0xFF, value); nileswan_io_write((id + 1) & 0xFF, value >> 8); }
+ else if (id >= 0x100)
+  { nileswan_io_write(id & 0xFF, value); }
  switch(id)
  {
   case MEMORY_GSREG_ROMBBSLCT:

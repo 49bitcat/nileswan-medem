@@ -55,6 +55,8 @@ static uint8 WSRLastButtonStatus;
 
 static void Reset(void)
 {
+  if (nileswan_is_active())
+    nileswan_init();
 	v30mz_reset();				/* Reset CPU */
 	WSwan_MemoryReset();
 	Comm_Reset();
@@ -392,6 +394,8 @@ static void Load(GameFile* gf)
   if(gf->ext == "ipl0")
   {
     nileswan_init();
+    nileswan_open_spi((gf->dir + "/nileswan.spi").c_str());
+    nileswan_open_tf((gf->dir + "/nileswan.img").c_str());
   }
 
   MDFNMP_Init(16384, (1 << 20) / 1024);
