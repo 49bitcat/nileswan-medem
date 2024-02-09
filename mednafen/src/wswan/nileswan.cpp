@@ -158,8 +158,8 @@ static uint8_t spi_tf_exchange(uint8_t tx) {
                 printf("nileswan/spi/tf: read interface configuration\n");
                 response[1] = 0;
                 response[2] = 0;
-                response[3] = 0;
-                response[4] = 0;
+                response[3] = 0x1;
+                response[4] = arg & 0xFF;
                 response_length = 5;
                 break;
             case 12:
