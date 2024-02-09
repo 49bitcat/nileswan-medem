@@ -44,6 +44,11 @@ struct {
 } spi_tf;
 static FILE *file_tf;
 
+static uint16_t bank_rom0, bank_rom1, bank_romL, bank_ram;
+static uint8_t flash_enable;
+static uint8_t nile_pow_cnt, nile_irq;
+static uint16_t nile_spi_cnt, nile_bank_mask;
+
 static void spi_buffer_push(nile_spi_device_buffer_t *buffer, const uint8_t *data, uint32_t length) {
     if (buffer->pos + length >= SPI_DEVICE_BUFFER_SIZE_BYTES) {
         printf("nileswan/spi: !!! BUFFER OVERRUN !!! (%d + %d >= %d)\n", buffer->pos, length, SPI_DEVICE_BUFFER_SIZE_BYTES);
@@ -109,6 +114,9 @@ static uint8_t spi_flash_exchange(uint8_t tx) {
 static uint8_t spi_tf_exchange(uint8_t tx) {
     uint8_t rx;
     uint8_t response[1024];
+
+    if ((nile_spi_cnt & NILE_SPI_DEV_TF) && !(nile_pow_cnt & NILE_POW_TF))
+        return 0xFF;
 
     if (spi_tf.rx.pos || tx < 0x80)
         spi_buffer_push(&spi_tf.rx, &tx, 1);
@@ -207,10 +215,6 @@ static uint8_t spi_tf_exchange(uint8_t tx) {
 #define SPI_BUFFER_MASK_BYTES (SPI_BUFFER_SIZE_BYTES - 1)
 
 static uint8_t *nile_psram, *nile_sram;
-static uint16_t bank_rom0, bank_rom1, bank_romL, bank_ram;
-static uint8_t flash_enable;
-static uint8_t nile_pow_cnt, nile_irq;
-static uint16_t nile_spi_cnt, nile_bank_mask;
 static bool nileswan_initialized = false;
 
 static uint8_t nile_spi_rx[SPI_BUFFER_SIZE_BYTES * 2];
@@ -277,6 +281,9 @@ static uint8_t spi_exchange(uint8_t tx) {
 }
 
 static void spi_cnt_update(void) {
+    if (!(nile_spi_cnt & NILE_SPI_390KHZ) && !(nile_pow_cnt & NILE_POW_CLOCK))
+        return;
+
     if (nile_spi_cnt & NILE_SPI_BUSY) {
         const char *device_name = (nile_spi_cnt & NILE_SPI_DEV_TF) ? "TF card" : "onboard flash";
 
@@ -314,6 +321,12 @@ static void spi_cnt_update(void) {
             if (mode_reads) rx_buffer[pos] = rx;
         }
         nile_spi_cnt = nile_spi_cnt & ~NILE_SPI_BUSY;
+    }
+}
+
+static void pow_cnt_update(void) {
+    if (!(nile_pow_cnt & NILE_POW_TF)) {
+        memset(&spi_tf, 0, sizeof(spi_tf));
     }
 }
 
@@ -388,6 +401,7 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
             break;
         case IO_NILE_POW_CNT:
             nile_pow_cnt = value;
+            pow_cnt_update();
             break;
         case IO_NILE_IRQ:
             nile_irq = value;
