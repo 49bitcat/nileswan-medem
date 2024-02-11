@@ -18,6 +18,9 @@ using namespace MDFN_IEN_WSWAN;
 
 /* === SPI devices === */
 
+/* Configuration */
+#define TF_STOP_TRANSFER_BUSY_DELAY_BYTES 100
+
 #define SPI_DEVICE_BUFFER_SIZE_BYTES 4096
 
 typedef struct {
@@ -166,9 +169,12 @@ static uint8_t spi_tf_exchange(uint8_t tx) {
                 printf("nileswan/spi/tf: stop reading\n");
                 spi_tf.reading = false;
                 spi_tf.tx.pos = 0;
-                response[0] = 0xFF;
-                response[1] = 0;
-                response_length = 2;
+                response[0] = 0xFF; // skipped byte
+		response[1] = 0xFF; // command processing delay
+		response[2] = 0x00; // command response
+		memset(response + 3, 0, TF_STOP_TRANSFER_BUSY_DELAY_BYTES);
+                response[3 + TF_STOP_TRANSFER_BUSY_DELAY_BYTES] = 0xFF;
+                response_length = 4 + TF_STOP_TRANSFER_BUSY_DELAY_BYTES;
                 break;
             case 16:
                 printf("nileswan/spi/tf: set block length = %d\n", arg);
