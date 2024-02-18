@@ -19,7 +19,7 @@ using namespace MDFN_IEN_WSWAN;
 /* === SPI devices === */
 
 /* Configuration */
-#define TF_STOP_TRANSFER_BUSY_DELAY_BYTES 100
+#define TF_STOP_TRANSFER_BUSY_DELAY_BYTES 8
 
 #define SPI_DEVICE_BUFFER_SIZE_BYTES 4096
 
@@ -316,16 +316,29 @@ static void spi_cnt_update(void) {
         }
         bool mode_reads = mode != NILE_SPI_MODE_WRITE;
         bool mode_writes = mode == NILE_SPI_MODE_WRITE || mode == NILE_SPI_MODE_EXCH;
-        printf("nileswan/spi: %s %d bytes %s %s\n",
+        for (; pos < length; pos++) {
+            uint8_t rx = spi_exchange(mode_writes ? tx_buffer[pos] : 0xFF);
+            if (mode_reads) rx_buffer[pos] = rx;
+        }
+        printf("nileswan/spi: %s %d bytes %s %s",
             mode_reads ? (mode_writes ? "exchanging" : "reading") : (mode_writes ? "writing" : "???"),
             length,
             mode_reads ? (mode_writes ? "with" : "from") : (mode_writes ? "to" : "with"),
             device_name
         );
-        for (; pos < length; pos++) {
-            uint8_t rx = spi_exchange(mode_writes ? tx_buffer[pos] : 0xFF);
-            if (mode_reads) rx_buffer[pos] = rx;
+        if (mode_writes) {
+            printf(" [%02x", tx_buffer[0]);
+            for(pos = 1; pos < length; pos++)
+                printf(" %02x", tx_buffer[pos]);
+            printf("]");
         }
+        if (mode_reads) {
+            printf(" [%02x", rx_buffer[0]);
+            for(pos = 1; pos < length; pos++)
+                printf(" %02x", rx_buffer[pos]);
+            printf("]");
+        }
+        printf("\n");
         nile_spi_cnt = nile_spi_cnt & ~NILE_SPI_BUSY;
     }
 }
@@ -419,13 +432,20 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
             nile_bank_mask = (nile_bank_mask & 0xFF) | (value << 8);
             break;
         case IO_NILE_SPI_CNT:
+            if (nile_spi_cnt & NILE_SPI_BUSY)
+                break;
             nile_spi_cnt = (nile_spi_cnt & 0xFF00) | value;
             // spi_cnt_update();
             break;
-        case IO_NILE_SPI_CNT + 1:
+        case IO_NILE_SPI_CNT + 1: {
+            if (nile_spi_cnt & NILE_SPI_BUSY)
+                break;
+            uint16_t old_spi_cnt = nile_spi_cnt;
             nile_spi_cnt = (nile_spi_cnt & 0xFF) | (value << 8);
+            if ((old_spi_cnt ^ nile_spi_cnt) & 0x1000)
+                printf("nileswan/spi: CS -> %s\n", (nile_spi_cnt & 0x1000) ? "LOW" : "HIGH");
             spi_cnt_update();
-            break;
+        } break;
     }
 }
 
