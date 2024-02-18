@@ -20,6 +20,7 @@ using namespace MDFN_IEN_WSWAN;
 
 /* Configuration */
 #define TF_STOP_TRANSFER_BUSY_DELAY_BYTES 8
+#define TF_DATA_BLOCK_READ_DELAY_BYTES 16
 
 #define SPI_DEVICE_BUFFER_SIZE_BYTES 4096
 
@@ -37,6 +38,12 @@ struct {
 } spi_flash;
 static FILE *file_flash;
 
+#define SPI_TF_WRITING_SINGLE 1
+#define SPI_TF_WRITING_MULTIPLE 2
+
+#define TF_ILLEGAL_COMMAND 0x04
+#define TF_PARAMETER_ERROR 0x40
+
 struct {
     nile_spi_device_buffer_t tx;
     nile_spi_device_buffer_t rx;
@@ -44,6 +51,7 @@ struct {
     uint8_t status;
 
     bool reading;
+    uint8_t writing;
 } spi_tf;
 static FILE *file_tf;
 
@@ -121,10 +129,62 @@ static uint8_t spi_tf_exchange(uint8_t tx) {
     if ((nile_spi_cnt & NILE_SPI_DEV_TF) && !(nile_pow_cnt & NILE_POW_TF))
         return 0xFF;
 
-    if (spi_tf.rx.pos || tx < 0x80)
+    if (spi_tf.rx.pos || spi_tf.writing || tx < 0x80)
         spi_buffer_push(&spi_tf.rx, &tx, 1);
     spi_buffer_pop(&spi_tf.tx, &rx, 1);
-    
+
+    if (spi_tf.writing) {
+        // handle card output
+        if (rx != 0xFF)
+            return rx;
+
+        // remove stall bytes
+        while (spi_tf.rx.data[0] == 0xFF && spi_tf.rx.pos)
+            spi_buffer_pop(&spi_tf.rx, NULL, 1);
+
+        // data token present?
+        if (!spi_tf.rx.pos)
+            return 0xFF;
+
+        if (spi_tf.writing == SPI_TF_WRITING_SINGLE) {
+            if (spi_tf.rx.data[0] != 0xFE) {
+                printf("nileswan/spi/tf: unexpected data block start %02x\n", spi_tf.rx.data[0]);
+                spi_tf.writing = 0;
+                spi_buffer_pop(&spi_tf.rx, NULL, 1);
+                return 0xFF;
+            }
+            // write data block
+            if (spi_tf.rx.pos < 515)
+                return 0xFF;
+            if (!feof(file_tf))
+                fwrite(spi_tf.rx.data + 1, 512, 1, file_tf);
+            spi_tf.writing = 0;
+            spi_buffer_pop(&spi_tf.rx, NULL, 515);
+
+            response[0] = 0xE5;
+            spi_buffer_push(&spi_tf.tx, response, 1);
+        }
+
+        if (spi_tf.writing == SPI_TF_WRITING_MULTIPLE) {
+            if (spi_tf.rx.data[0] != 0xFC) {
+                if (spi_tf.rx.data[0] != 0xFD)
+                    printf("nileswan/spi/tf: unexpected data block start %02x\n", spi_tf.rx.data[0]);
+                spi_tf.writing = 0;
+                spi_buffer_pop(&spi_tf.rx, NULL, 1);
+                return 0xFF;
+            }
+            // write data block
+            if (spi_tf.rx.pos < 515)
+                return 0xFF;
+            if (!feof(file_tf))
+                fwrite(spi_tf.rx.data + 1, 512, 1, file_tf);
+            spi_buffer_pop(&spi_tf.rx, NULL, 515);
+
+            response[0] = 0xE5;
+            spi_buffer_push(&spi_tf.tx, response, 1);
+        }
+    }
+
     if (spi_tf.reading && !spi_tf.tx.pos) {
         response[0] = 0xFE;
         for (int i = 0; i < 512; i++) {
@@ -178,13 +238,15 @@ static uint8_t spi_tf_exchange(uint8_t tx) {
                 break;
             case 16:
                 printf("nileswan/spi/tf: set block length = %d\n", arg);
+                if (arg != 512)
+                    response[0] |= TF_PARAMETER_ERROR;
                 break;
             case 17:
             case 18: {
                 printf("nileswan/spi/tf: reading %s @ %08X\n",
                     (cmd & 0x3F) == 18 ? "multiple sectors" : "single sector",
                     arg);
-                int data_ofs = 16;
+                int data_ofs = TF_DATA_BLOCK_READ_DELAY_BYTES;
                 response_length = data_ofs + 515;
                 memset(response + 1, 0xFF, response_length - 1);
                 if (file_tf != NULL) {
@@ -199,9 +261,19 @@ static uint8_t spi_tf_exchange(uint8_t tx) {
                     spi_tf.reading = true;
                 }
             } break;
+            case 24:
+            case 25: {
+                printf("nileswan/spi/tf: writing %s @ %08X\n",
+                    (cmd & 0x3F) == 25 ? "multiple sectors" : "single sector",
+                    arg);
+                if (file_tf != NULL) {
+                    fseek(file_tf, arg, SEEK_SET);
+                }
+                spi_tf.writing = (cmd & 0x3F) == 25 ? SPI_TF_WRITING_MULTIPLE : SPI_TF_WRITING_SINGLE;
+            } break;
             default:
                 printf("nileswan/spi/tf: unknown command %d\n", cmd & 0x3F);
-                response[0] |= 0x04;                
+                response[0] |= TF_ILLEGAL_COMMAND;
                 break;
         }
         spi_buffer_pop(&spi_tf.rx, NULL, 6);
