@@ -6,7 +6,7 @@
 #include "nileswan.h"
 #include "nileswan_hardware.h"
 
-#define PSRAM_MAX_BANK 127
+#define PSRAM_MAX_BANK 255
 #define SRAM_MAX_BANK 7
 
 namespace MDFN_IEN_WSWAN
@@ -126,7 +126,7 @@ static uint8_t spi_tf_exchange(uint8_t tx) {
     uint8_t rx;
     uint8_t response[1024];
 
-    if ((nile_spi_cnt & NILE_SPI_DEV_TF) && !(nile_pow_cnt & NILE_POW_TF))
+    if (((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_TF) && !(nile_pow_cnt & NILE_POW_TF))
         return 0xFF;
 
     if (spi_tf.rx.pos || spi_tf.writing || tx < 0x80)
@@ -351,10 +351,12 @@ static uint32_t get_spi_bank_offset(bool is_swan) {
 }
 
 static uint8_t spi_exchange(uint8_t tx) {
-    if (nile_spi_cnt & NILE_SPI_DEV_TF) {
+    if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_TF) {
         return spi_tf_exchange(tx);
-    } else {
+    } else if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_FLASH) {
         return spi_flash_exchange(tx);
+    } else {
+        return 0xFF;
     }
 }
 
@@ -363,7 +365,13 @@ static void spi_cnt_update(void) {
         return;
 
     if (nile_spi_cnt & NILE_SPI_BUSY) {
-        const char *device_name = (nile_spi_cnt & NILE_SPI_DEV_TF) ? "TF card" : "onboard flash";
+        const char *device_name = "none";
+	if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_TF)
+		device_name = "TF card";
+	else if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_FLASH)
+		device_name = "SPI flash";
+	else if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_MCU)
+		device_name = "MCU";
 
         uint8_t *tx_buffer = nile_spi_tx + get_spi_bank_offset(false);
         uint8_t *rx_buffer = nile_spi_rx + get_spi_bank_offset(false);
