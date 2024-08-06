@@ -33,8 +33,10 @@ struct {
     nile_spi_device_buffer_t tx;
     nile_spi_device_buffer_t rx;
 
-    bool reading;
-    uint32_t read_position;
+    uint8_t sr1, sr2, sr3;
+
+    uint8_t mode;
+    uint32_t position;
 } spi_flash;
 static FILE *file_flash;
 
@@ -65,7 +67,11 @@ static void spi_buffer_push(nile_spi_device_buffer_t *buffer, const uint8_t *dat
         printf("nileswan/spi: !!! BUFFER OVERRUN !!! (%d + %d >= %d)\n", buffer->pos, length, SPI_DEVICE_BUFFER_SIZE_BYTES);
         exit(1);
     }
-    memcpy(buffer->data + buffer->pos, data, length);
+    if (data != NULL) {
+        memcpy(buffer->data + buffer->pos, data, length);
+    } else {
+        memset(buffer->data + buffer->pos, 0xFF, length);
+    }
     buffer->pos += length;
 }
 
@@ -91,31 +97,107 @@ static bool spi_buffer_pop(nile_spi_device_buffer_t *buffer, uint8_t *data, uint
     return copy_length > 0;
 }
 
+static const uint8_t spi_flash_mfr_id = 0xEF;
+static const uint8_t spi_flash_dev_id = 0x14;
+static const uint8_t spi_flash_jedec_id[] = { spi_flash_mfr_id, 0x40, 0x15 };
+static const uint8_t spi_flash_uuid[] = { 0x01, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xEF };
+
 static uint8_t spi_flash_exchange(uint8_t tx) {
-    uint8_t rx;
-    if (spi_flash.reading) {
+    uint8_t rx = 0xFF;
+    uint32_t size = 0;
+
+    if (spi_flash.mode == NILE_FLASH_CMD_READ) {
         if (file_flash != NULL)
             rx = feof(file_flash) ? 0xFF : fgetc(file_flash);
         else
             rx = 0x90;
-        spi_flash.read_position++;
+        spi_flash.position++;
+    } else if (spi_flash.mode == NILE_FLASH_CMD_WRITE) {
+        // TODO: only set bits one way
+        // TODO: handle WEL
+        fseek(file_flash, spi_flash.position, SEEK_SET);
+        fputc(tx, file_flash);
+
+        // increment within page
+        spi_flash.position = ((spi_flash.position + 1) & 0xFF) | (spi_flash.position & 0xFFFFFF00);
+    } else if (spi_flash.mode == NILE_FLASH_CMD_RDSR1) {
+        return spi_flash.sr1;
+    } else if (spi_flash.mode == NILE_FLASH_CMD_RDSR2) {
+        return spi_flash.sr2;
+    } else if (spi_flash.mode == NILE_FLASH_CMD_RDSR3) {
+        return spi_flash.sr3;
     } else {
         spi_buffer_push(&spi_flash.rx, &tx, 1);
         spi_buffer_pop(&spi_flash.tx, &rx, 1);
 
         switch (spi_flash.rx.data[0]) {
-            case 0x03: // Read Data
+            case NILE_FLASH_CMD_ERASE_4K:
+                if (!size) size = 4096;
+            case NILE_FLASH_CMD_ERASE_32K:
+                if (!size) size = 32768;
+            case NILE_FLASH_CMD_ERASE_64K:
+                if (!size) size = 65536;
+            case NILE_FLASH_CMD_WRITE:
+            case NILE_FLASH_CMD_READ:
                 if (spi_flash.rx.pos >= 4) {
-                    spi_flash.reading = true;
-                    spi_flash.read_position =
+                    spi_flash.mode = spi_flash.rx.data[0];
+                    spi_flash.position =
                         (spi_flash.rx.data[1] << 16) |
                         (spi_flash.rx.data[2] << 8) |
                         spi_flash.rx.data[3];
                     spi_buffer_pop(&spi_flash.rx, NULL, 4);
                     if (file_flash != NULL)
-                        fseek(file_flash, spi_flash.read_position, SEEK_SET);
-                    printf("nileswan/spi/flash: read starting at location %06X\n", spi_flash.read_position);
+                        fseek(file_flash, spi_flash.position, SEEK_SET);
+                    if (spi_flash.mode == NILE_FLASH_CMD_WRITE) printf("nileswan/spi/flash: write starting at location %06X\n", spi_flash.position);
+                    else if (spi_flash.mode == NILE_FLASH_CMD_READ) printf("nileswan/spi/flash: read starting at location %06X\n", spi_flash.position);
+                    else printf("nileswan/spi/flash: erasing %d bytes at location %06X\n", size, spi_flash.position);
                 }
+                break;
+            case NILE_FLASH_CMD_RDSR1:
+            case NILE_FLASH_CMD_RDSR2:
+            case NILE_FLASH_CMD_RDSR3:
+                spi_flash.mode = spi_flash.rx.data[0];
+                spi_buffer_pop(&spi_flash.rx, NULL, 1);
+                break;
+            case NILE_FLASH_CMD_RDUUID:
+                spi_buffer_pop(&spi_flash.rx, NULL, 1);
+                spi_buffer_push(&spi_flash.tx, NULL, 4);
+                spi_buffer_push(&spi_flash.tx, spi_flash_uuid, 8);
+                break;
+            case NILE_FLASH_CMD_MFR_ID:
+                if (spi_flash.rx.pos >= 4) {
+                    spi_buffer_pop(&spi_flash.rx, NULL, 4);
+                    spi_buffer_push(&spi_flash.tx, &spi_flash_mfr_id, 1);
+                    spi_buffer_push(&spi_flash.tx, &spi_flash_dev_id, 1);
+                }
+                break;
+            case NILE_FLASH_CMD_RDID:
+                spi_buffer_pop(&spi_flash.rx, NULL, 1);
+                spi_buffer_push(&spi_flash.tx, spi_flash_jedec_id, 3);
+                break;
+            case NILE_FLASH_CMD_WAKE_ID:
+                printf("nileswan/spi/flash: waking\n");
+                spi_buffer_pop(&spi_flash.rx, NULL, 1);
+                spi_buffer_push(&spi_flash.tx, NULL, 3);
+                spi_buffer_push(&spi_flash.tx, &spi_flash_dev_id, 1);
+                break;
+            case NILE_FLASH_CMD_WRDI:
+                printf("nileswan/spi/flash: write disable\n");
+                spi_flash.sr1 &= ~NILE_FLASH_SR1_WEL;
+                spi_buffer_pop(&spi_flash.rx, NULL, 1);
+                break;
+            case NILE_FLASH_CMD_WREN:
+                printf("nileswan/spi/flash: write enable\n");
+                spi_flash.sr1 |= NILE_FLASH_SR1_WEL;
+                spi_buffer_pop(&spi_flash.rx, NULL, 1);
+                break;
+            case NILE_FLASH_CMD_SLEEP:
+                printf("nileswan/spi/flash: sleeping\n");
+                spi_buffer_pop(&spi_flash.rx, NULL, 1);
+                break;
+            default:
+                printf("nileswan/spi/flash: unknown command %02X\n", spi_flash.rx.data[0]);
+                spi_flash.rx.pos = 0;
                 break;
         }
     }
@@ -360,18 +442,24 @@ static uint8_t spi_exchange(uint8_t tx) {
     }
 }
 
-static void spi_cnt_update(void) {
+static void spi_cnt_update(uint16_t prev_spi_cnt) {
     if (!(nile_spi_cnt & NILE_SPI_390KHZ) && !(nile_pow_cnt & NILE_POW_CLOCK))
         return;
+
+    if ((nile_spi_cnt & NILE_SPI_DEV_MASK) != NILE_SPI_DEV_FLASH) {
+        spi_flash.tx.pos = 0;
+        spi_flash.rx.pos = 0;
+        spi_flash.mode = 0;
+    }
 
     if (nile_spi_cnt & NILE_SPI_BUSY) {
         const char *device_name = "none";
 	if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_TF)
-		device_name = "TF card";
+            device_name = "TF card";
 	else if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_FLASH)
-		device_name = "SPI flash";
+            device_name = "SPI flash";
 	else if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_MCU)
-		device_name = "MCU";
+            device_name = "MCU";
 
         uint8_t *tx_buffer = nile_spi_tx + get_spi_bank_offset(false);
         uint8_t *rx_buffer = nile_spi_rx + get_spi_bank_offset(false);
@@ -522,9 +610,7 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
                 break;
             uint16_t old_spi_cnt = nile_spi_cnt;
             nile_spi_cnt = (nile_spi_cnt & 0xFF) | (value << 8);
-            if ((old_spi_cnt ^ nile_spi_cnt) & 0x1000)
-                printf("nileswan/spi: CS -> %s\n", (nile_spi_cnt & 0x1000) ? "LOW" : "HIGH");
-            spi_cnt_update();
+            spi_cnt_update(old_spi_cnt);
         } break;
     }
 }

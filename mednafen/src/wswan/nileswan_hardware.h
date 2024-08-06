@@ -73,4 +73,65 @@
 #define NILE_SEG_ROM_RX    510
 #define NILE_SEG_ROM_BOOT  511
 
+/* SPI flash defines */
+
+#define NILE_FLASH_ID_W25Q16JV_IQ 0xEF4015
+#define NILE_FLASH_ID_W25Q16JV_IM 0xEF7015
+
+#define NILE_FLASH_SR1_BUSY      (1 << 0) ///< Erase/Write in Progress
+#define NILE_FLASH_SR1_WEL       (1 << 1) ///< Write Enable Latch
+#define NILE_FLASH_SR1_BP0       (1 << 2) ///< Block Protect 0
+#define NILE_FLASH_SR1_BP1       (1 << 3) ///< Block Protect 1
+#define NILE_FLASH_SR1_BP2       (1 << 4) ///< Block Protect 2
+#define NILE_FLASH_SR1_TB        (1 << 5) ///< Top/Bottom Block Protect
+#define NILE_FLASH_SR1_SEC       (1 << 6) ///< Sector/Block Protect
+#define NILE_FLASH_SR1_CMP       (1 << 7) ///< Complement Protect
+
+#define NILE_FLASH_SR2_SRL       (1 << 0) ///< Status Register Lock
+#define NILE_FLASH_SR2_LB1       (1 << 3) ///< Security Register 1 Lock
+#define NILE_FLASH_SR2_LB2       (1 << 4) ///< Security Register 2 Lock
+#define NILE_FLASH_SR2_LB3       (1 << 5) ///< Security Register 3 Lock
+#define NILE_FLASH_SR2_CMP       (1 << 6) ///< Complement Protect
+#define NILE_FLASH_SR2_SUS       (1 << 7) ///< Suspend Status
+
+#define NILE_FLASH_SR3_WPS       (1 << 2) ///< Write Protect Selection
+#define NILE_FLASH_SR3_DRV_100   (0)      ///< Output Driver Strength 100%
+#define NILE_FLASH_SR3_DRV_75    (1 << 5) ///< Output Driver Strength 75%
+#define NILE_FLASH_SR3_DRV_50    (2 << 5) ///< Output Driver Strength 50%
+#define NILE_FLASH_SR3_DRV_25    (3 << 5) ///< Output Driver Strength 25%
+#define NILE_FLASH_SR3_DRV_MASK  (3 << 5) ///< Output Driver Strength Mask
+
+#define NILE_FLASH_CMD_WRSR1     0x01 ///< Write Status Register 1
+#define NILE_FLASH_CMD_WRITE     0x02 ///< Write Data
+#define NILE_FLASH_CMD_READ      0x03 ///< Read Data
+#define NILE_FLASH_CMD_WRDI      0x04 ///< Write Disable
+#define NILE_FLASH_CMD_RDSR1     0x05 ///< Read Status Register 1
+#define NILE_FLASH_CMD_WREN      0x06 ///< Write Enable
+#define NILE_FLASH_CMD_WRSR3     0x11 ///< Write Status Register 3
+#define NILE_FLASH_CMD_RDSR3     0x15 ///< Read Status Register 3
+#define NILE_FLASH_CMD_ERASE_4K  0x20 ///< Sector Erase (4K)
+#define NILE_FLASH_CMD_WRSR2     0x31 ///< Write Status Register 2
+#define NILE_FLASH_CMD_RDSR2     0x35 ///< Read Status Register 2
+#define NILE_FLASH_CMD_BLOCK_LOCK   0x36 ///< Individual block lock
+#define NILE_FLASH_CMD_BLOCK_UNLOCK 0x39 ///< Individual block unlock
+#define NILE_FLASH_CMD_BLOCK_RDLOCK 0x3D ///< Read block lock
+#define NILE_FLASH_CMD_SEC_WRITE 0x42 ///< Write security registers
+#define NILE_FLASH_CMD_SEC_ERASE 0x44 ///< Erase security registers
+#define NILE_FLASH_CMD_SEC_READ  0x48 ///< Read security registers
+#define NILE_FLASH_CMD_RDUUID    0x4B ///< Read 64-bit Unique ID
+#define NILE_FLASH_CMD_ERASE_32K 0x52 ///< Block Erase (32K)
+#define NILE_FLASH_CMD_RDSFPD    0x5A ///< Read SFDP
+#define NILE_FLASH_CMD_RESET_EN  0x66 ///< Enable reset
+#define NILE_FLASH_CMD_SUSPEND   0x75 ///< Erase/Program Suspend
+#define NILE_FLASH_CMD_RESUME    0x7A ///< Erase/Program Resume
+#define NILE_FLASH_CMD_LOCK      0x7E ///< Global lock
+#define NILE_FLASH_CMD_MFR_ID    0x90 ///< Read Manufacturer / Device ID
+#define NILE_FLASH_CMD_UNLOCK    0x98 ///< Global unlock
+#define NILE_FLASH_CMD_RESET     0x99 ///< Reset device
+#define NILE_FLASH_CMD_RDID      0x9F ///< Read JEDEC ID
+#define NILE_FLASH_CMD_WAKE_ID   0xAB ///< Release Power-down / Device ID
+#define NILE_FLASH_CMD_SLEEP     0xB9 ///< Power-down
+#define NILE_FLASH_CMD_ERASE_ALL 0xC7 ///< Chip Erase. Not advisable
+#define NILE_FLASH_CMD_ERASE_64K 0xD8 ///< Block Erase (64K)
+
 #endif
