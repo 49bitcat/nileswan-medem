@@ -69,6 +69,7 @@
 
 #define IO_NILE_SEG_MASK   0xE4
 
+#define NILE_SEG_RAM_IPC   14
 #define NILE_SEG_RAM_TX    15
 #define NILE_SEG_ROM_RX    510
 #define NILE_SEG_ROM_BOOT  511
