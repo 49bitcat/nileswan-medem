@@ -548,6 +548,16 @@ static void GetAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
    Buffer++;
   }
  }
+ else if(!strcmp(name, "ports"))
+ {
+  while(Length--)
+  {
+   Address &= 0xFF;
+   *Buffer = IsWW ? WSwan_readport_WW(Address) : WSwan_readport(Address);
+   Address++;
+   Buffer++;
+  }
+ }
  else if(!strcmp(name, "cs") || !strcmp(name, "ds") || !strcmp(name, "ss") || !strcmp(name, "es"))
  {
   uint32 segment;
@@ -863,6 +873,8 @@ void WSwan_MemoryInit(bool lang, bool IsWSC, uint32 ssize, bool IsWW_arg)
    ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "ss", "Stack Segment", 16);
    ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "ds", "Data Segment", 16);
    ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "es", "Extra Segment", 16);
+
+   ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "ports", "I/O Ports", 8);
 
    ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "ieeprom", "Internal EEPROM", 11);
 
