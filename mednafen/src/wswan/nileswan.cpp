@@ -377,7 +377,7 @@ static uint8_t spi_tf_exchange(uint8_t tx) {
 static uint8_t *nile_psram, *nile_sram;
 static bool nileswan_initialized = false;
 
-static uint8_t nile_ipc[512];
+uint8_t nile_ipc[NILE_IPC_SIZE];
 static uint8_t nile_spi_rx[SPI_BUFFER_SIZE_BYTES * 2];
 static uint8_t nile_spi_tx[SPI_BUFFER_SIZE_BYTES * 2];
 
@@ -638,7 +638,7 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
         if (physical_bank <= SRAM_MAX_BANK) {
             *buffer = nile_sram + physical_address;
         } else if (physical_bank == NILE_SEG_RAM_IPC) {
-            *buffer = nile_ipc + (physical_address & 0x1FF);
+            *buffer = nile_ipc + (physical_address & (NILE_IPC_SIZE - 1));
         } else if (physical_bank == NILE_SEG_RAM_TX && (write || is_debugger)) {
             *buffer = nile_spi_tx + (physical_address & SPI_BUFFER_MASK_BYTES) + get_spi_bank_offset(true);
         }

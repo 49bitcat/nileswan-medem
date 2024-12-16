@@ -526,6 +526,16 @@ static void GetAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
    Buffer++;
   }
  }
+ else if(!strcmp(name, "nile_ipc"))
+ {
+  while(Length--)
+  {
+   Address &= NILE_IPC_SIZE - 1;
+   *Buffer = nile_ipc[Address];
+   Address++;
+   Buffer++;
+  }
+ }
  else if(!strcmp(name, "ieeprom"))
  {
   while(Length--)
@@ -611,6 +621,16 @@ static void PutAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
   {
    Address &= eeprom_size - 1;
    wsEEPROM[Address] = *Buffer;
+   Address++;
+   Buffer++;
+  }
+ }
+ else if(!strcmp(name, "nile_ipc"))
+ {
+  while(Length--)
+  {
+   Address &= NILE_IPC_SIZE - 1;
+   nile_ipc[Address] = *Buffer;
    Address++;
    Buffer++;
   }
@@ -894,6 +914,8 @@ void WSwan_MemoryInit(bool lang, bool IsWSC, uint32 ssize, bool IsWW_arg)
     ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "sram", "Cartridge SRAM", (int)(log(sram_size) / log(2)));
    if(eeprom_size)
     ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "eeprom", "Cartridge EEPROM", (int)(log(eeprom_size) / log(2)));
+
+   ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "nile_ipc", "Nileswan IPC", (int)(log(NILE_IPC_SIZE) / log(2)));
   }
   #endif
 

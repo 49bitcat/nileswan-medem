@@ -5,6 +5,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define NILE_IPC_SIZE 512
+extern uint8_t nile_ipc[NILE_IPC_SIZE];
+
 bool nileswan_is_active(void);
 bool nileswan_init(void);
 void nileswan_quit(void);
