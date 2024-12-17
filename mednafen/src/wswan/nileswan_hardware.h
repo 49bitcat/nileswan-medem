@@ -67,6 +67,9 @@
 #define NILE_IRQ_SPI       0x02
 #define IO_NILE_IRQ        0xE3
 
+#define NILE_SEG_MASK_ROM0_ENABLE 0x0200
+#define NILE_SEG_MASK_ROM1_ENABLE 0x0400
+#define NILE_SEG_MASK_RAM_ENABLE  0x0800
 #define IO_NILE_SEG_MASK   0xE4
 
 #define NILE_SEG_RAM_IPC   14

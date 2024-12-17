@@ -1,3 +1,6 @@
+#include "wswan.h"
+#include "memory.h"
+#include "comm.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -95,6 +98,10 @@ static bool spi_buffer_pop(nile_spi_device_buffer_t *buffer, uint8_t *data, uint
         memmove(buffer->data, buffer->data + copy_length, buffer->pos);
     }
     return copy_length > 0;
+}
+
+static uint8_t spi_mcu_exchange(uint8_t tx) {
+    return 0xFF;
 }
 
 static const uint8_t spi_flash_mfr_id = 0xEF;
@@ -438,6 +445,8 @@ static uint8_t spi_exchange(uint8_t tx) {
         return spi_tf_exchange(tx);
     } else if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_FLASH) {
         return spi_flash_exchange(tx);
+    } else if ((nile_spi_cnt & NILE_SPI_DEV_MASK) == NILE_SPI_DEV_MCU) {
+        return spi_mcu_exchange(tx);
     } else {
         return 0xFF;
     }
@@ -611,6 +620,7 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
                 break;
             uint16_t old_spi_cnt = nile_spi_cnt;
             nile_spi_cnt = (nile_spi_cnt & 0xFF) | (value << 8);
+            printf("nileswan/spi: control = %04X\n", nile_spi_cnt);
             spi_cnt_update(old_spi_cnt);
         } break;
     }
@@ -621,18 +631,26 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
     bool is_ram = (cpu_bank == 1) && !flash_enable;
 
     uint32_t physical_bank;
+    uint16_t mask_bit;
     if (cpu_bank == 1) {
         physical_bank = bank_ram;
+        mask_bit = NILE_SEG_MASK_RAM_ENABLE;
     } else if (cpu_bank == 2) {
         physical_bank = bank_rom0;
+        mask_bit = NILE_SEG_MASK_ROM0_ENABLE;
     } else if (cpu_bank == 3) {
         physical_bank = bank_rom1;
+        mask_bit = NILE_SEG_MASK_ROM1_ENABLE;
     } else {
         physical_bank = (bank_romL << 4) | cpu_bank;
+        mask_bit = 0;
     }
     *buffer = NULL;
     if (is_ram) {
-        physical_bank &= (nile_bank_mask >> 12);
+	if (!mask_bit || (nile_bank_mask & mask_bit))
+            physical_bank &= (nile_bank_mask >> 12);
+        else
+            physical_bank &= 0xF;
         uint32_t physical_address = (physical_bank << 16) | (address & 0xFFFF);
 
         if (physical_bank <= SRAM_MAX_BANK) {
@@ -643,7 +661,10 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
             *buffer = nile_spi_tx + (physical_address & SPI_BUFFER_MASK_BYTES) + get_spi_bank_offset(true);
         }
     } else {
-        physical_bank &= (nile_bank_mask & 0x1FF);
+	if (!mask_bit || (nile_bank_mask & mask_bit))
+            physical_bank &= (nile_bank_mask & 0x1FF);
+        else
+            physical_bank &= 0x1FF;
         uint32_t physical_address = (physical_bank << 16) | (address & 0xFFFF);
 
         if (physical_bank <= PSRAM_MAX_BANK) {
