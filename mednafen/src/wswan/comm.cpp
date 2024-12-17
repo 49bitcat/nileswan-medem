@@ -26,7 +26,7 @@
 #include <signal.h>
 #endif
 
-// #define WS_COMM_DEBUG
+#define WS_COMM_DEBUG
 
 #ifdef WS_COMM_DEBUG
 #define Comm_debug_printf printf
@@ -124,6 +124,37 @@ void Comm_Reset(void)
  // kill(child_pid, SIGUSR1);
 }
 
+bool Comm_SendByte(uint8 V)
+{
+ if(stdin_pipes[1] != -1)
+ {
+  if(write(stdin_pipes[1], &V, 1) == 1)
+  {
+   Comm_debug_printf("SENT: %02x %d\n", V, RecvLatched);
+   return true;
+  }
+  return false;
+ }
+ else
+ {
+  Comm_debug_printf("DummySend: %02x %d\n", V, RecvLatched);
+  return true;
+ }
+}
+
+bool Comm_RecvByte(uint8 *V)
+{
+ if(stdout_pipes[0] != -1)
+ {
+  if(read(stdout_pipes[0], V, 1) == 1)
+  {
+   Comm_debug_printf("RECEIVED: %02x\n", *V);
+   return true;
+  }
+ }
+ return false;
+}
+
 void Comm_Process(void)
 {
  if (!(Control & 0x80))
@@ -131,18 +162,8 @@ void Comm_Process(void)
 
  if(SendLatched)
  {
-  if(stdin_pipes[1] != -1)
+  if(Comm_SendByte(SendBuf))
   {
-   if(write(stdin_pipes[1], &SendBuf, 1) == 1)
-   {
-    Comm_debug_printf("SENT: %02x %d\n", SendBuf, RecvLatched);
-    SendLatched = false;
-    WSwan_Interrupt(WSINT_SERIAL_SEND);
-   }
-  }
-  else
-  {
-   Comm_debug_printf("DummySend: %02x %d\n", SendBuf, RecvLatched);
    SendLatched = false;
    WSwan_Interrupt(WSINT_SERIAL_SEND);
   }
@@ -150,14 +171,10 @@ void Comm_Process(void)
 
  if(!RecvLatched)
  {
-  if(stdout_pipes[0] != -1)
+  if(Comm_RecvByte(&RecvBuf))
   {
-   if(read(stdout_pipes[0], &RecvBuf, 1) == 1)
-   {
-    Comm_debug_printf("RECEIVED: %02x\n", RecvBuf);
-    RecvLatched = true;
-    WSwan_InterruptAssert(WSINT_SERIAL_RECV, RecvLatched);
-   }
+   RecvLatched = true;
+   WSwan_InterruptAssert(WSINT_SERIAL_RECV, RecvLatched);
   }
  }
 }

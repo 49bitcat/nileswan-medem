@@ -24,6 +24,9 @@ void Comm_Reset(void);
 void Comm_StateAction(StateMem *sm, const unsigned load, const bool data_only);
 
 void Comm_Process(void);
+bool Comm_SendByte(uint8 V);
+bool Comm_RecvByte(uint8 *V);
+
 uint8 Comm_Read(uint8 A);
 void Comm_Write(uint8 A, uint8 V);
 
