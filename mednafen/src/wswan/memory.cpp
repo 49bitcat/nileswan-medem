@@ -65,18 +65,16 @@ static uint8 WW_FlashLock;
 
 enum
 {
- WW_FWSM_READ = 0,
-
- WW_FWSM_FPS0,
- WW_FWSM_FPS1,
-
- WW_FWSM_FP0,
- WW_FWSM_FP1,
-
- WW_FWSM_FPR0
+ WW_STATE_READ = 0,
+ WW_STATE_UNLOCK_1,
+ WW_STATE_UNLOCK_2,
+ WW_STATE_FAST,
+ WW_STATE_FAST_WRITE,
+ WW_STATE_WRITE,
+ WW_STATE_ERASE
 };
 
-static uint8 WW_FWSM;
+static uint8 WW_State;
 //
 
 template<bool WW>
@@ -101,74 +99,50 @@ static INLINE void WriteMem(uint32 A, uint8 V)
  }
  else if(bank == 1) /* SRAM */
  { 
-  //if((offset | (BankSelector[1] << 16)) >= 0x38000)
-  // printf("%08x\n", offset | (BankSelector[1] << 16));
+  uint32 address = offset | (BankSelector[1] << 16);
+
   if(WW && WW_FlashLock)
   {
-    uint32 rom_addr = offset | (BankSelector[1] << 16);
+    //printf("Write: %08x %02x\n", address, V);
 
-    //printf("Write: %08x %02x\n", rom_addr, V);
-
-    switch(WW_FWSM)
-    {
-     case WW_FWSM_READ:
-
-	if((rom_addr & 0xFFF) == 0xAAA && V == 0xAA)
-	 WW_FWSM = WW_FWSM_FPS0;
-
-	break;
-
-     case WW_FWSM_FPS0:
-
-	if((rom_addr & 0xFFF) == 0x555 && V == 0x55)
-	 WW_FWSM = WW_FWSM_FPS1;
-	else
-	 WW_FWSM = WW_FWSM_READ;
-
-	break;
-
-     case WW_FWSM_FPS1:
-	if((rom_addr & 0xFFF) == 0xAAA && V == 0x20)
-	 WW_FWSM = WW_FWSM_FP0;
-	else
-	 WW_FWSM = WW_FWSM_READ;
-	break;
-
-     case WW_FWSM_FP0:
-	if((rom_addr & 0xFFF) == 0xBA && V == 0x90)
-	 WW_FWSM = WW_FWSM_FPR0;
-	else if(V == 0xA0)
-	 WW_FWSM = WW_FWSM_FP1;
-	break;
-
-     case WW_FWSM_FP1:
-	//printf("Program: %08x %02x\n", rom_addr, V);
-	wsCartROM[rom_addr & 524287] = V;
-	WW_FWSM = WW_FWSM_FP0;
-	break;
-
-     case WW_FWSM_FPR0:
-	if(V == 0xF0)
-	 WW_FWSM = WW_FWSM_READ;	
-	break;
-   }
+    if (WW_State == WW_STATE_READ) {
+      if ((address & 0xFFF) == 0xAAA && V == 0xAA) WW_State = WW_STATE_UNLOCK_1;
+      else WW_State = WW_STATE_READ;
+    }
+    else if (WW_State == WW_STATE_UNLOCK_1) {
+      if ((address & 0xFFF) == 0x555 && V == 0x55) WW_State = WW_STATE_UNLOCK_2;
+      else WW_State = WW_STATE_READ;
+    }
+    else if (WW_State == WW_STATE_UNLOCK_2) {
+      if (V == 0x20) WW_State = WW_STATE_FAST;
+      else if (V == 0xA0) WW_State = WW_STATE_WRITE;
+      else if (V == 0x10) WW_State = WW_STATE_ERASE;
+      else if (V == 0x30) WW_State = WW_STATE_ERASE;
+      else WW_State = WW_STATE_READ;
+    }
+    else if (WW_State == WW_STATE_FAST) {
+      if (V == 0xA0) WW_State = WW_STATE_FAST_WRITE;
+      else if (V == 0x90) WW_State = WW_STATE_READ; /* Reset mode */
+      else WW_State = WW_STATE_FAST;
+    }
+    else if (WW_State == WW_STATE_FAST_WRITE) {
+      wsCartROM[address & (rom_size - 1)] = V;
+      WW_State = WW_STATE_FAST;
+    }
+    else if (WW_State == WW_STATE_WRITE) {
+      wsCartROM[address & (rom_size - 1)] = V;
+      WW_State = WW_STATE_READ;
+    }
+    else if (WW_State == WW_STATE_ERASE) {
+      if ((address & 0xFFF) == 0xAAA && V == 0xAA) WW_State = WW_STATE_UNLOCK_1;
+      else WW_State = WW_STATE_READ;
+    }
   }
   else if(sram_size)
-   wsSRAM[(offset | (BankSelector[1] << 16)) & (sram_size - 1)] = V;
+   wsSRAM[address & (rom_size - 1)] = V;
  }
 }	
 
-#if 0
- WW_FWSM_READ = 0,
-
- WW_FWSM_FPS0,
- WW_FWSM_FPS1,
-
- WW_FWSM_FP0,
- WW_FWSM_FP1,
-
- WW_FWSM_FPR0
-#endif
 template<bool WW>
 static INLINE uint8 ReadMem(uint32 A)
 {
@@ -181,24 +155,27 @@ static INLINE uint8 ReadMem(uint32 A)
  {
 	case 0:  return wsRAM[offset];
 
-	case 1:  if(WW && WW_FlashLock)
+	case 1:
+               {
+                 uint32 address = (offset | (BankSelector[1] << 16));
+                 if(WW && WW_FlashLock)
 		 {
-		  uint32 rom_addr = (offset | (BankSelector[1] << 16));
-		  uint8 ret = wsCartROM[rom_addr & 524287];
+		  uint8 ret = wsCartROM[address & (rom_size - 1)];
 
-		  if(WW_FWSM != WW_FWSM_READ)
-                   ret &= 0x80;
-
-		  //printf("%08x %02x %02x\n", rom_addr, wsCartROM[rom_addr & 524287], ret);
+		  if(WW_State == WW_STATE_FAST)
+                   ret = 0x00;
+		  if(WW_State == WW_STATE_ERASE)
+                   ret = 0xFF;
 
 		  return ret;
 	 	 }
 		 else if(sram_size)
 		 {
-		  return wsSRAM[(offset | (BankSelector[1] << 16)) & (sram_size - 1)];
+		  return wsSRAM[address & (sram_size - 1)];
 		 }
 		 else
 		  return(0);
+                }
 
 	default:
 		{
@@ -923,9 +900,8 @@ void WSwan_MemoryReset(void)
  SoundDMAControl = 0;
  SoundDMATimer = 0;
 
- //
  WW_FlashLock = 0;
- WW_FWSM = 0;
+ WW_State = 0;
 }
 
 void WSwan_MemoryStateAction(StateMem *sm, const unsigned load, const bool data_only)
@@ -953,7 +929,7 @@ void WSwan_MemoryStateAction(StateMem *sm, const unsigned load, const bool data_
 
   SFPTR8N(IsWW ? wsCartROM : NULL, 524288, SFORMAT::FORM::NVMEM, "WW flash"),
   SFVAR(WW_FlashLock),
-  SFVAR(WW_FWSM),
+  SFVAR(WW_State),
 
   SFEND
  };
