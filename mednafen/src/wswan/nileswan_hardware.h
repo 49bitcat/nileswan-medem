@@ -33,6 +33,7 @@
 #define CART_FLASH_ENABLE  0x01
 #define CART_FLASH_DISABLE 0x00
 
+#define IO_BANK_2003_ROM_LINEAR 0xCF
 #define IO_BANK_2003_RAM 0xD0
 #define IO_BANK_2003_ROM0 0xD2
 #define IO_BANK_2003_ROM1 0xD4
@@ -61,21 +62,38 @@
 
 #define NILE_POW_CLOCK     0x01
 #define NILE_POW_TF        0x02
+#define NILE_POW_IO_NILE   0x04
+#define NILE_POW_IO_2001   0x08
+#define NILE_POW_IO_2003   0x10
+#define NILE_POW_SRAM      0x40
+#define NILE_POW_MCU_RESET 0x80
+#define NILE_POW_UNLOCK    0xFD
 #define IO_NILE_POW_CNT    0xE2
 
 #define NILE_IRQ_ENABLE    0x01
 #define NILE_IRQ_SPI       0x02
 #define IO_NILE_IRQ        0xE3
 
-#define NILE_SEG_MASK_ROM0_ENABLE 0x0200
-#define NILE_SEG_MASK_ROM1_ENABLE 0x0400
-#define NILE_SEG_MASK_RAM_ENABLE  0x0800
+#define NILE_SEG_RAM_MASK  0xF
+#define NILE_SEG_RAM_SHIFT 12
+#define NILE_SEG_ROM_MASK  0x1FF
+#define NILE_SEG_ROM_SHIFT 0
+#define NILE_SEG_ROM0_LOCK (1 << 9)
+#define NILE_SEG_ROM1_LOCK (1 << 10)
+#define NILE_SEG_SRAM_LOCK (1 << 11)
 #define IO_NILE_SEG_MASK   0xE4
 
-#define NILE_SEG_RAM_IPC   14
-#define NILE_SEG_RAM_TX    15
-#define NILE_SEG_ROM_RX    510
-#define NILE_SEG_ROM_BOOT  511
+#define NILE_SEG_RAM_IPC       14
+#define NILE_SEG_RAM_TX        15
+#define NILE_SEG_ROM_BOOT_PCV2 500
+#define NILE_SEG_ROM_RX        510
+#define NILE_SEG_ROM_BOOT      511
+
+#define NILE_EMU_EEPROM_MASK 0x3
+#define NILE_EMU_EEPROM_128B 0x0
+#define NILE_EMU_EEPROM_1KB  0x1
+#define NILE_EMU_EEPROM_2KB  0x2
+#define IO_NILE_EMU_CNT      0xE6
 
 /* SPI flash defines */
 

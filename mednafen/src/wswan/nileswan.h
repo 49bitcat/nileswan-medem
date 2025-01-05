@@ -36,7 +36,7 @@ void spi_buffer_push(nile_spi_device_buffer_t *buffer, const uint8_t *data, uint
 bool spi_buffer_pop(nile_spi_device_buffer_t *buffer, uint8_t *data, uint32_t length);
 
 uint8_t nile_spi_mcu_exchange(uint8_t tx);
-void nile_spi_mcu_reset(bool full);
+void nile_spi_mcu_reset(bool full, bool bootloader_mode);
 uint8_t nile_spi_flash_exchange(uint8_t tx);
 void nile_spi_flash_reset(bool full);
 uint8_t nile_spi_tf_exchange(uint8_t tx);

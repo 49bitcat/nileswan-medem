@@ -24,7 +24,7 @@ extern FILE *file_tf;
 
 static uint16_t bank_rom0, bank_rom1, bank_romL, bank_ram;
 static uint8_t flash_enable;
-static uint8_t nile_pow_cnt, nile_irq;
+static uint8_t nile_pow_cnt, nile_irq, nile_emu_cnt;
 static uint16_t nile_spi_cnt, nile_bank_mask;
 
 void spi_buffer_push(nile_spi_device_buffer_t *buffer, const uint8_t *data, uint32_t length) {
@@ -93,11 +93,11 @@ bool nileswan_init(void) {
     bank_ram = 0xFFFF;
     flash_enable = 0;
     nile_spi_cnt = 0;
-    nile_pow_cnt = 0x01;
+    nile_pow_cnt = NILE_POW_UNLOCK;
     nile_irq = 0;
     nile_bank_mask = 0xFFFF;
 
-    nile_spi_mcu_reset(true);
+    nile_spi_mcu_reset(true, false);
     nile_spi_flash_reset(true);
     nile_spi_tf_reset(true);
 
@@ -218,6 +218,11 @@ static void pow_cnt_update(void) {
     if (!(nile_pow_cnt & NILE_POW_TF)) {
         nile_spi_tf_reset(true);
     }
+    if (nile_pow_cnt & NILE_POW_MCU_RESET) {
+        // TODO: Reset in non-bootloader modes
+        printf("nileswan/mcu: reset\n");
+        nile_spi_mcu_reset(true, true);
+    }
 }
 
 /* === Cartridge memory/IO routing === */
@@ -225,90 +230,134 @@ static void pow_cnt_update(void) {
 uint8_t nileswan_io_read(uint32_t index, bool is_debugger) {
     switch (index) {
         case IO_CART_FLASH:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return flash_enable;
         case IO_BANK_ROM_LINEAR:
             return bank_romL;
+        case IO_BANK_2003_ROM_LINEAR:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            return bank_romL;
         case IO_BANK_RAM:
+            return bank_ram;
         case IO_BANK_2003_RAM:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_ram;
         case IO_BANK_2003_RAM+1:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_ram >> 8;
         case IO_BANK_ROM0:
+            return bank_rom0;
         case IO_BANK_2003_ROM0:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom0;
         case IO_BANK_2003_ROM0+1:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom0 >> 8;
         case IO_BANK_ROM1:
+            return bank_rom1;
         case IO_BANK_2003_ROM1:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom1;
         case IO_BANK_2003_ROM1+1:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom1 >> 8;
         case IO_NILE_POW_CNT:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_pow_cnt;
         case IO_NILE_IRQ:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_irq;
         case IO_NILE_SEG_MASK:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_bank_mask;
         case IO_NILE_SEG_MASK + 1:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_bank_mask >> 8;
         case IO_NILE_SPI_CNT:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_spi_cnt;
         case IO_NILE_SPI_CNT + 1:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_spi_cnt >> 8;
-        default:
-            return 0x00;
+        case IO_NILE_EMU_CNT:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
+            return nile_emu_cnt;
     }
+    return 0x00;
 }
 
 void nileswan_io_write(uint32_t index, uint8_t value) {
     switch (index) {
         case IO_CART_FLASH:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             flash_enable = value & 0x01;
             break;
         case IO_BANK_ROM_LINEAR:
             bank_romL = value;
             break;
+        case IO_BANK_2003_ROM_LINEAR:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            bank_romL = value;
+            break;
         case IO_BANK_RAM:
+            bank_ram = (bank_ram & 0xFF00) | value;
+            break;
         case IO_BANK_2003_RAM:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             bank_ram = (bank_ram & 0xFF00) | value;
             break;
         case IO_BANK_2003_RAM+1:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             bank_ram = (bank_ram & 0xFF) | (value << 8);
             break;
         case IO_BANK_ROM0:
+            bank_rom0 = (bank_rom0 & 0xFF00) | value;
+            break;
         case IO_BANK_2003_ROM0:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             bank_rom0 = (bank_rom0 & 0xFF00) | value;
             break;
         case IO_BANK_2003_ROM0+1:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             bank_rom0 = (bank_rom0 & 0xFF) | (value << 8);
             break;
         case IO_BANK_ROM1:
+            bank_rom1 = (bank_rom1 & 0xFF00) | value;
+            break;
         case IO_BANK_2003_ROM1:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             bank_rom1 = (bank_rom1 & 0xFF00) | value;
             break;
         case IO_BANK_2003_ROM1+1:
+            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
             bank_rom1 = (bank_rom1 & 0xFF) | (value << 8);
             break;
         case IO_NILE_POW_CNT:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE) && value != NILE_POW_UNLOCK) break;
             nile_pow_cnt = value;
             pow_cnt_update();
             break;
         case IO_NILE_IRQ:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             nile_irq = value;
             break;
         case IO_NILE_SEG_MASK:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             nile_bank_mask = (nile_bank_mask & 0xFF00) | value;
             break;
         case IO_NILE_SEG_MASK + 1:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             nile_bank_mask = (nile_bank_mask & 0xFF) | (value << 8);
             break;
         case IO_NILE_SPI_CNT:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             if (nile_spi_cnt & NILE_SPI_BUSY)
                 break;
             nile_spi_cnt = (nile_spi_cnt & 0xFF00) | value;
             // spi_cnt_update();
             break;
         case IO_NILE_SPI_CNT + 1: {
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             if (nile_spi_cnt & NILE_SPI_BUSY)
                 break;
             uint16_t old_spi_cnt = nile_spi_cnt;
@@ -316,6 +365,10 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
             printf("nileswan/spi: control = %04X\n", nile_spi_cnt);
             spi_cnt_update(old_spi_cnt);
         } break;
+        case IO_NILE_EMU_CNT:
+            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
+            nile_emu_cnt = value;
+            break;
     }
 }
 
@@ -327,13 +380,13 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
     uint16_t mask_bit;
     if (cpu_bank == 1) {
         physical_bank = bank_ram;
-        mask_bit = NILE_SEG_MASK_RAM_ENABLE;
+        mask_bit = NILE_SEG_SRAM_LOCK;
     } else if (cpu_bank == 2) {
         physical_bank = bank_rom0;
-        mask_bit = NILE_SEG_MASK_ROM0_ENABLE;
+        mask_bit = NILE_SEG_ROM0_LOCK;
     } else if (cpu_bank == 3) {
         physical_bank = bank_rom1;
-        mask_bit = NILE_SEG_MASK_ROM1_ENABLE;
+        mask_bit = NILE_SEG_ROM1_LOCK;
     } else {
         physical_bank = (bank_romL << 4) | cpu_bank;
         mask_bit = 0;
@@ -347,7 +400,9 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
         uint32_t physical_address = (physical_bank << 16) | (address & 0xFFFF);
 
         if (physical_bank <= SRAM_MAX_BANK) {
-            *buffer = nile_sram + physical_address;
+            if (nile_pow_cnt & NILE_POW_SRAM) {
+                *buffer = nile_sram + physical_address;
+            }
         } else if (physical_bank == NILE_SEG_RAM_IPC) {
             *buffer = nile_ipc + (physical_address & (NILE_IPC_SIZE - 1));
         } else if (physical_bank == NILE_SEG_RAM_TX && (write || is_debugger)) {
@@ -362,7 +417,7 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
 
         if (physical_bank <= PSRAM_MAX_BANK) {
             *buffer = nile_psram + physical_address;
-        } else if (physical_bank == NILE_SEG_ROM_BOOT) {
+        } else if (physical_bank == NILE_SEG_ROM_BOOT || physical_bank == NILE_SEG_ROM_BOOT_PCV2) {
             *buffer = wsCartROM + (rom_size - 512) + (physical_address & 511);
         } else if (physical_bank == NILE_SEG_ROM_RX && (!write || is_debugger)) {
             *buffer = nile_spi_rx + (physical_address & SPI_BUFFER_MASK_BYTES) + get_spi_bank_offset(true);

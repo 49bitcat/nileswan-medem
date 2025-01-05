@@ -14,6 +14,7 @@ using namespace MDFN_IEN_WSWAN;
 struct {
     nile_spi_device_buffer_t tx;
     nile_spi_device_buffer_t rx;
+    bool bootloader_mode;
 } spi_mcu;
 
 static void spi_mcu_send_response(uint16_t len, const void *buffer) {
@@ -22,7 +23,15 @@ static void spi_mcu_send_response(uint16_t len, const void *buffer) {
     spi_buffer_push(&spi_mcu.tx, (const uint8_t*) buffer, len);
 }
 
+uint8_t nile_spi_mcu_boot_exchange(uint8_t tx) {
+    return 0x1F;
+}
+
 uint8_t nile_spi_mcu_exchange(uint8_t tx) {
+    if (spi_mcu.bootloader_mode) {
+        return nile_spi_mcu_boot_exchange(tx);
+    }
+
     uint8_t rx = 0xFF;
     uint8_t response[512];
     if (spi_buffer_pop(&spi_mcu.tx, &rx, 1))
@@ -79,8 +88,9 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
     return rx;
 }
 
-void nile_spi_mcu_reset(bool full) {
+void nile_spi_mcu_reset(bool full, bool bootloader_mode) {
     if (full) {
         memset(&spi_mcu, 0, sizeof(spi_mcu));
     }
+    spi_mcu.bootloader_mode = bootloader_mode;
 }
