@@ -23,6 +23,12 @@ struct {
     uint32_t boot_dest_address;
 } spi_mcu;
 
+static bool spi_mcu_persistent_initialized = false;
+struct {
+    uint8_t eeprom_mode;
+    uint16_t eeprom_data[1024];
+} spi_mcu_persistent;
+
 static void spi_mcu_send_response(uint16_t len, const void *buffer) {
     uint16_t key = len << 1;
     spi_buffer_push(&spi_mcu.tx, (const uint8_t*) &key, 2);
@@ -171,7 +177,28 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
         uint16_t cmd = spi_mcu.rx.data[0] & 0x7F;
         uint16_t arg = (spi_mcu.rx.data[0] >> 7) | spi_mcu.rx.data[1] << 1;
         switch (cmd) {
-            case 0x40: {
+            case MCU_SPI_CMD_EEPROM_MODE: {
+                printf("nileswan/spi/mcu: set EEPROM mode to %d\n", arg);
+                spi_mcu_persistent.eeprom_mode = arg;
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                response[0] = 1;
+                spi_mcu_send_response(1, response);
+            } break;
+            case MCU_SPI_CMD_EEPROM_READ: {
+                if (arg == 0) arg = 512;
+                if (spi_mcu.rx.pos < 4) break;
+                uint16_t address = spi_mcu.rx.data[2] | (spi_mcu.rx.data[3] << 8);
+                printf("nileswan/spi/mcu: read %d words from EEPROM address %04X\n", arg, address);
+                spi_buffer_pop(&spi_mcu.rx, NULL, 4);
+                spi_mcu_send_response(2 * arg, spi_mcu_persistent.eeprom_data + address);
+            } break;
+            case MCU_SPI_CMD_EEPROM_GET_MODE: {
+                printf("nileswan/spi/mcu: get EEPROM mode (%d)\n", spi_mcu_persistent.eeprom_mode);
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                response[0] = spi_mcu_persistent.eeprom_mode;
+                spi_mcu_send_response(1, response);
+            } break;
+            case MCU_SPI_CMD_USB_CDC_READ: {
                 if (arg == 0) arg = 512;
                 if (arg > MCU_MAX_PER_USB_CDC_PACKET) arg = MCU_MAX_PER_USB_CDC_PACKET;
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
@@ -183,7 +210,7 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                 printf("nileswan/spi/mcu: USB read %d bytes, found %d\n", arg, len);
                 spi_mcu_send_response(len, response);
             } break;
-            case 0x41: {
+            case MCU_SPI_CMD_USB_CDC_WRITE: {
                 if (arg == 0) arg = 512;
                 if (spi_mcu.rx.pos < 2+arg) break;
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
@@ -196,7 +223,7 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                 spi_buffer_pop(&spi_mcu.rx, NULL, arg);
                 spi_mcu_send_response(2, &len);
             } break;
-            case 0x00: {
+            case MCU_SPI_CMD_ECHO: {
                 if (arg == 0) arg = 512;
                 if (spi_mcu.rx.pos < 2+arg) break;
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
@@ -215,6 +242,10 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
 }
 
 void nile_spi_mcu_reset(bool full, bool boot_mode) {
+    if (!spi_mcu_persistent_initialized) {
+        memset(&spi_mcu_persistent, 0, sizeof(spi_mcu_persistent));
+        spi_mcu_persistent_initialized = true;
+    }
     if (full) {
         memset(&spi_mcu, 0, sizeof(spi_mcu));
     }
