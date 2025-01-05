@@ -101,6 +101,8 @@ bool nileswan_init(void) {
     nile_spi_flash_reset(true);
     nile_spi_tf_reset(true);
 
+    memset(&nile_ipc, 0, sizeof(nile_ipc));
+
     if (!nileswan_initialized) {
         nile_psram = (uint8_t*) malloc(PSRAM_SIZE_BYTES);
         nile_sram = (uint8_t*) malloc(SRAM_SIZE_BYTES);
@@ -212,6 +214,7 @@ static void spi_cnt_update(uint16_t prev_spi_cnt) {
         printf("\n");
         nile_spi_cnt = nile_spi_cnt & ~NILE_SPI_BUSY;
     }
+    fflush(stdout);
 }
 
 static void pow_cnt_update(void) {
