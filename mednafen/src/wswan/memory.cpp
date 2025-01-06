@@ -55,6 +55,8 @@ static uint32 SoundDMALength, SoundDMALengthSaved;
 static uint8 SoundDMAControl;
 static uint8 SoundDMATimer;
 
+static uint8 SystemControl;
+
 static uint8 BankSelector[4];
 
 static bool language;
@@ -281,7 +283,7 @@ static INLINE uint8 ReadPort(uint32 number)
 
   if((number >= 0x80 && number <= 0x9F) || (number == 0x6A) || (number == 0x6B))
    return(WSwan_SoundRead(number));
-  else if(number <= 0x3F || (number >= 0xA0 && number <= 0xAF) || (number == 0x60))
+  else if(number <= 0x3F || (number >= 0xA2 && number <= 0xAF) || (number == 0x60))
    return(WSwan_GfxRead(number));
   else if((number >= 0xBA && number <= 0xBE) || (number >= 0xC4 && number <= 0xC8))
    return(WSwan_EEPROMRead(number));
@@ -301,6 +303,8 @@ static INLINE uint8 ReadPort(uint32 number)
    case 0x47: return(DMALength >> 8);
 
    case 0x48: return(DMAControl);
+
+   case 0xA0: return(SystemControl | (wsc ? 0x02 : 0x00));
 
    case 0xB0:
    case 0xB2:
@@ -347,7 +351,7 @@ static INLINE void WritePort(uint32 IOPort, uint8 V)
 	{
 	 WSwan_SoundWrite(IOPort, V);
 	}
-	else if((IOPort >= 0x00 && IOPort <= 0x3F) || (IOPort >= 0xA0 && IOPort <= 0xAF) || (IOPort == 0x60))
+	else if((IOPort >= 0x00 && IOPort <= 0x3F) || (IOPort >= 0xA2 && IOPort <= 0xAF) || (IOPort == 0x60))
 	{
 	 WSwan_GfxWrite(IOPort, V);
 	}
@@ -401,6 +405,8 @@ static INLINE void WritePort(uint32 IOPort, uint8 V)
 
 		case 0x52: SoundDMAControl = V & ~0x20;
 			   break;
+
+	case 0xA0: SystemControl = (SystemControl & 0x81) | (V & 0x0D); break;
 
 	case 0xB0:
 	case 0xB2:
@@ -899,6 +905,8 @@ void WSwan_MemoryReset(void)
  SoundDMALength = SoundDMALengthSaved = 0;
  SoundDMAControl = 0;
  SoundDMATimer = 0;
+
+ SystemControl = 0x85;
 
  WW_FlashLock = 0;
  WW_State = 0;
