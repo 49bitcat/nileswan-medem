@@ -37,7 +37,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install build-essential pkg-config libasound2-dev libflac-dev libsdl2-dev zip zlib1g-dev
       - uses: actions/checkout@v3
       - name: Configure
-        run: mednafen/configure
+        run: mednafen/configure --disable-apple2 --disable-gb --disable-gba --disable-nes --disable-sasplay --disable-sms --disable-snes --disable-snes-faust --disable-ssfplay --disable-nls --disable-fancy-scalers
       - name: Build
         run: make -j$(nproc)
       - name: Package artifact
