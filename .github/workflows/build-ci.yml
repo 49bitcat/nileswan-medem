@@ -38,6 +38,8 @@ jobs:
       - name: Install required dependencies
         run: sudo apt-get update && sudo apt-get install build-essential pkg-config libasound2-dev libflac-dev libsdl2-dev zip zlib1g-dev
       - uses: actions/checkout@v4
+      - name: Autogen
+        run: cd mednafen && ./autogen.sh
       - name: Configure
         run: mednafen/configure --disable-apple2 --disable-gb --disable-gba --disable-nes --disable-sasplay --disable-sms --disable-snes --disable-snes-faust --disable-ssfplay --disable-nls --disable-fancy-scalers
       - name: Autogen
