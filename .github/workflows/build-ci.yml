@@ -20,15 +20,15 @@ jobs:
       - name: Autogen
         run: cd mednafen && ./autogen.sh
       - name: Configure
-        run: CPPFLAGS="-DUNICODE=1 -D_UNICODE=1 -DPCEDEVEL_FLAC_DLL" LDFLAGS="-fstack-protector -static-libstdc++" mednafen/configure --host=x86_64-w64-mingw32 --enable-threads=win32 --disable-alsa --disable-jack --disable-apple2 --disable-gb --disable-gba --disable-nes --disable-sasplay --disable-sms --disable-snes --disable-snes-faust --disable-ssfplay --disable-nls --disable-fancy-scalers 
+        run: CPPFLAGS="-DUNICODE=1 -D_UNICODE=1 -DPCEDEVEL_FLAC_DLL" LDFLAGS="-fstack-protector -static-libstdc++" mednafen/configure --host=x86_64-w64-mingw32 --enable-threads=win32 --disable-alsa --disable-jack --disable-apple2 --disable-gb --disable-gba --disable-lynx --disable-md --disable-nes --disable-ngp --disable-psx --disable-sasplay --disable-sms --disable-snes --disable-snes-faust --disable-ssfplay --disable-ss --disable-vb --disable-nls --disable-fancy-scalers
       - name: Build
         run: make -j$(nproc)
       - name: Package artifact
-        run: mkdir dist && cp src/mednafen.exe $SYSROOT/bin/SDL2.dll $SYSROOT/bin/iconv.dll $SYSROOT/bin/libFLAC-*.dll $SYSROOT/bin/libgcc* $SYSROOT/bin/libogg* $SYSROOT/bin/libssp* $SYSROOT/bin/libwinpthread* $SYSROOT/bin/zlib1.dll mednafen/COPYING dist/ && x86_64-w64-mingw32-strip -s dist/mednafen.exe && mv dist/mednafen.exe dist/wf-mednafen.exe
+        run: mkdir dist && cp src/mednafen.exe $SYSROOT/bin/SDL2.dll $SYSROOT/bin/iconv.dll $SYSROOT/bin/libFLAC-*.dll $SYSROOT/bin/libgcc* $SYSROOT/bin/libogg* $SYSROOT/bin/libssp* $SYSROOT/bin/libwinpthread* $SYSROOT/bin/zlib1.dll mednafen/COPYING dist/ && x86_64-w64-mingw32-strip -s dist/mednafen.exe && mv dist/mednafen.exe dist/mednafen-nileswan.exe
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wf-mednafen (Windows)
+          name: mednafen-nileswan (Windows)
           path: dist/*
 
   # === Linux (Ubuntu 22.04) ===
@@ -41,15 +41,15 @@ jobs:
       - name: Autogen
         run: cd mednafen && ./autogen.sh
       - name: Configure
-        run: mednafen/configure --disable-apple2 --disable-gb --disable-gba --disable-nes --disable-sasplay --disable-sms --disable-snes --disable-snes-faust --disable-ssfplay --disable-nls --disable-fancy-scalers
+        run: mednafen/configure --disable-apple2 --disable-gb --disable-gba --disable-lynx --disable-md --disable-nes --disable-ngp --disable-psx --disable-sasplay --disable-sms --disable-snes --disable-snes-faust --disable-ssfplay --disable-ss --disable-vb --disable-nls --disable-fancy-scalers
       - name: Autogen
         run: cd mednafen && ./autogen.sh
       - name: Build
         run: make -j$(nproc)
       - name: Package artifact
-        run: mkdir dist && cp src/mednafen mednafen/COPYING dist/ && strip -s dist/mednafen && mv dist/mednafen dist/wf-mednafen
+        run: mkdir dist && cp src/mednafen mednafen/COPYING dist/ && strip -s dist/mednafen && mv dist/mednafen dist/mednafen-nileswan
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wf-mednafen (Linux)
+          name: mednafen-nileswan (Linux)
           path: dist/*
