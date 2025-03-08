@@ -352,19 +352,28 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
             if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             nile_bank_mask = (nile_bank_mask & 0xFF) | (value << 8);
             break;
-        case IO_NILE_SPI_CNT:
+        case IO_NILE_SPI_CNT: {
             if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
-            if (nile_spi_cnt & NILE_SPI_BUSY)
+            uint16_t new_nile_spi_cnt = (nile_spi_cnt & 0xFF00) | value;
+            if (nile_spi_cnt & NILE_SPI_BUSY) {
+                printf("nileswan/spi: BUG trying to write to SPI control while transfer active (control %04X => %04X)\n",
+                    nile_spi_cnt, new_nile_spi_cnt);
                 break;
-            nile_spi_cnt = (nile_spi_cnt & 0xFF00) | value;
-            // spi_cnt_update();
-            break;
+            }
+            nile_spi_cnt = new_nile_spi_cnt;
+        } break;
         case IO_NILE_SPI_CNT + 1: {
             if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
-            if (nile_spi_cnt & NILE_SPI_BUSY)
+            uint16_t new_nile_spi_cnt = (nile_spi_cnt & 0xFF) | (value << 8);
+            if (nile_spi_cnt != new_nile_spi_cnt && (new_nile_spi_cnt | NILE_SPI_BUSY) == nile_spi_cnt) {
+                printf("nileswan/spi: abort\n");
+            } else if (nile_spi_cnt & NILE_SPI_BUSY) {
+                printf("nileswan/spi: BUG trying to write to SPI control while transfer active (control %04X => %04X)\n",
+                    nile_spi_cnt, new_nile_spi_cnt);
                 break;
+            }
             uint16_t old_spi_cnt = nile_spi_cnt;
-            nile_spi_cnt = (nile_spi_cnt & 0xFF) | (value << 8);
+            nile_spi_cnt = new_nile_spi_cnt;
             printf("nileswan/spi: control = %04X\n", nile_spi_cnt);
             spi_cnt_update(old_spi_cnt);
         } break;
