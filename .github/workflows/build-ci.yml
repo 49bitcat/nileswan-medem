@@ -24,7 +24,7 @@ jobs:
       - name: Package artifact
         run: mkdir dist && cp src/mednafen.exe $SYSROOT/bin/SDL2.dll $SYSROOT/bin/iconv.dll $SYSROOT/bin/libFLAC-*.dll $SYSROOT/bin/libgcc* $SYSROOT/bin/libogg* $SYSROOT/bin/libssp* $SYSROOT/bin/libwinpthread* $SYSROOT/bin/zlib1.dll mednafen/COPYING dist/ && x86_64-w64-mingw32-strip -s dist/mednafen.exe && mv dist/mednafen.exe dist/wf-mednafen.exe
       - name: Archive artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wf-mednafen (Windows)
           path: dist/*
@@ -43,7 +43,7 @@ jobs:
       - name: Package artifact
         run: mkdir dist && cp src/mednafen mednafen/COPYING dist/ && strip -s dist/mednafen && mv dist/mednafen dist/wf-mednafen
       - name: Archive artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wf-mednafen (Linux)
           path: dist/*
