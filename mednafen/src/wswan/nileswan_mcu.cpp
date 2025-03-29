@@ -26,6 +26,7 @@ struct {
 static bool spi_mcu_persistent_initialized = false;
 struct {
     uint8_t eeprom_mode;
+    uint32_t save_id;
     uint16_t eeprom_data[1024];
 } spi_mcu_persistent;
 
@@ -85,6 +86,27 @@ uint8_t nile_spi_mcu_boot_exchange(uint8_t tx) {
                         spi_mcu_boot_send_ack(true);
                     }
                 } break;
+                case NILE_MCU_BOOT_READ_MEMORY: {
+                    if (spi_mcu.boot_step == 1) {
+                        if (spi_mcu.rx.pos < 5) return rx;
+                        spi_mcu.boot_dest_address = (spi_mcu.rx.data[0] << 24)
+				| (spi_mcu.rx.data[1] << 16)
+				| (spi_mcu.rx.data[2] << 8)
+				| spi_mcu.rx.data[3];
+                        spi_mcu.boot_step = 2;
+                        spi_buffer_pop(&spi_mcu.rx, NULL, 5);
+                        spi_mcu_boot_send_ack(true);
+                    }
+                    if (spi_mcu.boot_step == 2) {
+                        if (spi_mcu.rx.pos < 2) return rx;
+                        int len = spi_mcu.rx.data[0] + 1;
+                        printf("nileswan/spi/mcu/boot: stub: read %d bytes from %08X\n", len, spi_mcu.boot_dest_address);
+                        spi_mcu.boot_step = 0;
+                        spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                        spi_mcu_boot_send_ack(true);
+                        // TODO: Send anything in response.
+                    }
+                } break;
                 case NILE_MCU_BOOT_ERASE_MEMORY: {
                     if (spi_mcu.boot_step == 1) {
                         if (spi_mcu.rx.pos < 3) return rx;
@@ -131,6 +153,11 @@ uint8_t nile_spi_mcu_boot_exchange(uint8_t tx) {
                 } break;
                 case NILE_MCU_BOOT_WRITE_MEMORY: {
                     printf("nileswan/spi/mcu/boot: write memory\n");
+                    spi_mcu.boot_step = 1;
+                    spi_mcu_boot_send_ack(true);
+                } break;
+                case NILE_MCU_BOOT_READ_MEMORY: {
+                    printf("nileswan/spi/mcu/boot: read memory\n");
                     spi_mcu.boot_step = 1;
                     spi_mcu_boot_send_ack(true);
                 } break;
@@ -197,6 +224,26 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
                 response[0] = spi_mcu_persistent.eeprom_mode;
                 spi_mcu_send_response(1, response);
+            } break;
+            case MCU_SPI_CMD_SET_SAVE_ID: {
+                if (spi_mcu.rx.pos < 6) break;
+                spi_mcu_persistent.save_id = spi_mcu.rx.data[2]
+                    | (spi_mcu.rx.data[3] << 8)
+                    | (spi_mcu.rx.data[4] << 16)
+                    | (spi_mcu.rx.data[5] << 24);
+                printf("nileswan/spi/mcu: set save ID to %d\n", spi_mcu_persistent.save_id);
+                spi_buffer_pop(&spi_mcu.rx, NULL, 6);
+                response[0] = 1;
+                spi_mcu_send_response(1, response);
+            } break;
+            case MCU_SPI_CMD_GET_SAVE_ID: {
+                printf("nileswan/spi/mcu: get save ID (%d)\n", spi_mcu_persistent.save_id);
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                response[0] = spi_mcu_persistent.save_id;
+                response[1] = spi_mcu_persistent.save_id >> 8;
+                response[2] = spi_mcu_persistent.save_id >> 16;
+                response[3] = spi_mcu_persistent.save_id >> 24;
+                spi_mcu_send_response(4, response);
             } break;
             case MCU_SPI_CMD_USB_CDC_READ: {
                 if (arg == 0) arg = 512;
