@@ -233,57 +233,57 @@ static void pow_cnt_update(void) {
 uint8_t nileswan_io_read(uint32_t index, bool is_debugger) {
     switch (index) {
         case IO_CART_FLASH:
-            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return flash_enable;
         case IO_BANK_ROM_LINEAR:
             return bank_romL;
         case IO_BANK_2003_ROM_LINEAR:
-            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_romL;
         case IO_BANK_RAM:
             return bank_ram;
         case IO_BANK_2003_RAM:
-            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_ram;
         case IO_BANK_2003_RAM+1:
-            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_ram >> 8;
         case IO_BANK_ROM0:
             return bank_rom0;
         case IO_BANK_2003_ROM0:
-            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom0;
         case IO_BANK_2003_ROM0+1:
-            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom0 >> 8;
         case IO_BANK_ROM1:
             return bank_rom1;
         case IO_BANK_2003_ROM1:
-            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom1;
         case IO_BANK_2003_ROM1+1:
-            if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom1 >> 8;
         case IO_NILE_POW_CNT:
-            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_pow_cnt;
         case IO_NILE_IRQ:
-            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_irq;
         case IO_NILE_SEG_MASK:
-            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_bank_mask;
         case IO_NILE_SEG_MASK + 1:
-            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_bank_mask >> 8;
         case IO_NILE_SPI_CNT:
-            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_spi_cnt;
         case IO_NILE_SPI_CNT + 1:
-            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_spi_cnt >> 8;
         case IO_NILE_EMU_CNT:
-            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
+            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_emu_cnt;
     }
     return 0x00;
