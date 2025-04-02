@@ -217,14 +217,15 @@ static void spi_cnt_update(uint16_t prev_spi_cnt) {
     fflush(stdout);
 }
 
-static void pow_cnt_update(void) {
+static void pow_cnt_update(uint8_t new_value) {
+    uint8_t old_value = nile_pow_cnt;
+    nile_pow_cnt = new_value;
     if (!(nile_pow_cnt & NILE_POW_TF)) {
         nile_spi_tf_reset(true);
     }
-    if (nile_pow_cnt & NILE_POW_MCU_RESET) {
-        // TODO: Reset in non-bootloader modes
+    if (!(old_value & NILE_POW_MCU_RESET) && (new_value & NILE_POW_MCU_RESET)) {
         printf("nileswan/mcu: reset\n");
-        nile_spi_mcu_reset(true, true);
+        nile_spi_mcu_reset(true, (new_value & NILE_POW_MCU_BOOT0) != 0);
     }
 }
 
@@ -337,8 +338,7 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
             break;
         case IO_NILE_POW_CNT:
             if(!(nile_pow_cnt & NILE_POW_IO_NILE) && value != NILE_POW_UNLOCK) break;
-            nile_pow_cnt = value;
-            pow_cnt_update();
+            pow_cnt_update(value);
             break;
         case IO_NILE_IRQ:
             if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;

@@ -65,6 +65,7 @@
 #define NILE_POW_IO_NILE   0x04
 #define NILE_POW_IO_2001   0x08
 #define NILE_POW_IO_2003   0x10
+#define NILE_POW_MCU_BOOT0 0x20
 #define NILE_POW_SRAM      0x40
 #define NILE_POW_MCU_RESET 0x80
 #define NILE_POW_UNLOCK    0xFD
