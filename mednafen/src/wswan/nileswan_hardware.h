@@ -71,9 +71,7 @@
 #define NILE_POW_UNLOCK    0xFD
 #define IO_NILE_POW_CNT    0xE2
 
-#define NILE_IRQ_ENABLE    0x01
-#define NILE_IRQ_SPI       0x02
-#define IO_NILE_IRQ        0xE3
+#define IO_NILE_WARMBOOT_CNT 0xE3
 
 #define NILE_SEG_RAM_MASK  0xF
 #define NILE_SEG_RAM_SHIFT 12

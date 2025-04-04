@@ -24,7 +24,7 @@ extern FILE *file_tf;
 
 static uint16_t bank_rom0, bank_rom1, bank_romL, bank_ram;
 static uint8_t flash_enable;
-static uint8_t nile_pow_cnt, nile_irq, nile_emu_cnt;
+static uint8_t nile_pow_cnt, nile_emu_cnt;
 static uint16_t nile_spi_cnt, nile_bank_mask;
 
 void spi_buffer_push(nile_spi_device_buffer_t *buffer, const uint8_t *data, uint32_t length) {
@@ -94,7 +94,6 @@ bool nileswan_init(void) {
     flash_enable = 0;
     nile_spi_cnt = 0;
     nile_pow_cnt = NILE_POW_UNLOCK;
-    nile_irq = 0;
     nile_bank_mask = 0xFFFF;
 
     nile_spi_mcu_reset(true, false);
@@ -268,9 +267,6 @@ uint8_t nileswan_io_read(uint32_t index, bool is_debugger) {
         case IO_NILE_POW_CNT:
             if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_pow_cnt;
-        case IO_NILE_IRQ:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
-            return nile_irq;
         case IO_NILE_SEG_MASK:
             if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_bank_mask;
@@ -339,10 +335,6 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
         case IO_NILE_POW_CNT:
             if(!(nile_pow_cnt & NILE_POW_IO_NILE) && value != NILE_POW_UNLOCK) break;
             pow_cnt_update(value);
-            break;
-        case IO_NILE_IRQ:
-            if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
-            nile_irq = value;
             break;
         case IO_NILE_SEG_MASK:
             if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
