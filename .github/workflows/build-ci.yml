@@ -9,7 +9,6 @@ jobs:
   # === Windows (cross-compile via mingw) ===
   win64:
     env:
-      SDL2_VERSION: 2.28.2
       SYSROOT: /usr/x86_64-w64-mingw32/sys-root/mingw
     runs-on: ubuntu-latest
     container: fedora:latest
@@ -24,11 +23,11 @@ jobs:
       - name: Build
         run: make -j$(nproc)
       - name: Package artifact
-        run: mkdir dist && cp src/mednafen.exe $SYSROOT/bin/SDL2.dll $SYSROOT/bin/iconv.dll $SYSROOT/bin/libFLAC-*.dll $SYSROOT/bin/libgcc* $SYSROOT/bin/libogg* $SYSROOT/bin/libssp* $SYSROOT/bin/libwinpthread* $SYSROOT/bin/zlib1.dll mednafen/COPYING dist/ && x86_64-w64-mingw32-strip -s dist/mednafen.exe && mv dist/mednafen.exe dist/mednafen-nileswan.exe
+        run: mkdir dist && cp src/mednafen.exe $SYSROOT/bin/SDL2.dll $SYSROOT/bin/iconv.dll $SYSROOT/bin/libFLAC-*.dll $SYSROOT/bin/libgcc* $SYSROOT/bin/libogg* $SYSROOT/bin/libssp* $SYSROOT/bin/libwinpthread* $SYSROOT/bin/zlib1.dll mednafen/COPYING dist/ && x86_64-w64-mingw32-strip -s dist/mednafen.exe && mv dist/mednafen.exe dist/nileswan-medem.exe
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mednafen-nileswan (Windows)
+          name: nileswan-medem (Windows)
           path: dist/*
 
   # === Linux (Ubuntu 22.04) ===
@@ -47,9 +46,9 @@ jobs:
       - name: Build
         run: make -j$(nproc)
       - name: Package artifact
-        run: mkdir dist && cp src/mednafen mednafen/COPYING dist/ && strip -s dist/mednafen && mv dist/mednafen dist/mednafen-nileswan
+        run: mkdir dist && cp src/mednafen mednafen/COPYING dist/ && strip -s dist/mednafen && mv dist/mednafen dist/nileswan-medem
       - name: Archive artifact
         uses: actions/upload-artifact@v4
         with:
-          name: mednafen-nileswan (Linux)
+          name: nileswan-medem (Linux)
           path: dist/*
