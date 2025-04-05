@@ -86,7 +86,7 @@ bool nileswan_is_tf_powered(void) {
     return nile_pow_cnt & NILE_POW_TF;
 }
 
-bool nileswan_init(void) {
+void nile_fpga_reset(void) {
     bank_rom0 = 0xFFFF;
     bank_rom1 = 0xFFFF;
     bank_romL = 0x00FF;
@@ -96,11 +96,14 @@ bool nileswan_init(void) {
     nile_pow_cnt = NILE_POW_UNLOCK;
     nile_bank_mask = 0xFFFF;
 
+    memset(&nile_ipc, 0, sizeof(nile_ipc));
+}
+
+bool nileswan_init(void) {
+    nile_fpga_reset();
     nile_spi_mcu_reset(true, false);
     nile_spi_flash_reset(true);
     nile_spi_tf_reset(true);
-
-    memset(&nile_ipc, 0, sizeof(nile_ipc));
 
     if (!nileswan_initialized) {
         nile_psram = (uint8_t*) malloc(PSRAM_SIZE_BYTES);
@@ -335,6 +338,9 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
         case IO_NILE_POW_CNT:
             if(!(nile_pow_cnt & NILE_POW_IO_NILE) && value != NILE_POW_UNLOCK) break;
             pow_cnt_update(value);
+            break;
+        case IO_NILE_WARMBOOT_CNT:
+            nile_fpga_reset();
             break;
         case IO_NILE_SEG_MASK:
             if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
