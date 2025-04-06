@@ -68,7 +68,7 @@
 #define NILE_POW_MCU_BOOT0 0x20
 #define NILE_POW_SRAM      0x40
 #define NILE_POW_MCU_RESET 0x80
-#define NILE_POW_UNLOCK    0xFD
+#define NILE_POW_UNLOCK    0xDD
 #define IO_NILE_POW_CNT    0xE2
 
 #define IO_NILE_WARMBOOT_CNT 0xE3
