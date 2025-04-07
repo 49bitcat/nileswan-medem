@@ -289,12 +289,10 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
 }
 
 void nile_spi_mcu_reset(bool full, bool boot_mode) {
-    if (!spi_mcu_persistent_initialized) {
+    if (!spi_mcu_persistent_initialized || full) {
         memset(&spi_mcu_persistent, 0, sizeof(spi_mcu_persistent));
         spi_mcu_persistent_initialized = true;
     }
-    if (full) {
-        memset(&spi_mcu, 0, sizeof(spi_mcu));
-    }
+    memset(&spi_mcu, 0, sizeof(spi_mcu));
     spi_mcu.boot_mode = boot_mode;
 }
