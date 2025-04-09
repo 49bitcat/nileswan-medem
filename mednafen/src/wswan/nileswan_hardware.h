@@ -92,6 +92,7 @@
 #define NILE_EMU_EEPROM_128B 0x0
 #define NILE_EMU_EEPROM_1KB  0x1
 #define NILE_EMU_EEPROM_2KB  0x2
+#define NILE_EMU_FLASH_FSM   0x4
 #define IO_NILE_EMU_CNT      0xE6
 
 /* SPI flash defines */

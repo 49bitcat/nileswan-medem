@@ -1,6 +1,7 @@
 #include "wswan.h"
 #include "memory.h"
 #include "comm.h"
+#include "rtc.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,6 +27,19 @@ static uint16_t bank_rom0, bank_rom1, bank_romL, bank_ram;
 static uint8_t flash_enable;
 static uint8_t nile_pow_cnt, nile_emu_cnt;
 static uint16_t nile_spi_cnt, nile_bank_mask;
+
+enum
+{
+ WW_STATE_READ = 0,
+ WW_STATE_UNLOCK_1,
+ WW_STATE_UNLOCK_2,
+ WW_STATE_FAST,
+ WW_STATE_FAST_WRITE,
+ WW_STATE_WRITE,
+ WW_STATE_ERASE
+};
+
+static uint8_t nile_ww_state;
 
 void spi_buffer_push(nile_spi_device_buffer_t *buffer, const uint8_t *data, uint32_t length) {
     if (buffer->pos + length >= SPI_DEVICE_BUFFER_SIZE_BYTES) {
@@ -95,6 +109,8 @@ void nile_fpga_reset(void) {
     nile_spi_cnt = 0;
     nile_pow_cnt = NILE_POW_UNLOCK;
     nile_bank_mask = 0xFFFF;
+    nile_emu_cnt = 0;
+    nile_ww_state = 0;
 
     memset(&nile_ipc, 0, sizeof(nile_ipc));
 }
@@ -234,62 +250,54 @@ static void pow_cnt_update(uint8_t new_value) {
 /* === Cartridge memory/IO routing === */
 
 uint8_t nileswan_io_read(uint32_t index, bool is_debugger) {
+    if(index == 0xCA || index == 0xCB)
+        return RTC_Read(index);
+
     switch (index) {
         case IO_CART_FLASH:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return flash_enable;
         case IO_BANK_ROM_LINEAR:
             return bank_romL;
         case IO_BANK_2003_ROM_LINEAR:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_romL;
         case IO_BANK_RAM:
             return bank_ram;
         case IO_BANK_2003_RAM:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_ram;
         case IO_BANK_2003_RAM+1:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_ram >> 8;
         case IO_BANK_ROM0:
             return bank_rom0;
         case IO_BANK_2003_ROM0:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom0;
         case IO_BANK_2003_ROM0+1:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom0 >> 8;
         case IO_BANK_ROM1:
             return bank_rom1;
         case IO_BANK_2003_ROM1:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom1;
         case IO_BANK_2003_ROM1+1:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_2003)) break;
             return bank_rom1 >> 8;
         case IO_NILE_POW_CNT:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_pow_cnt;
         case IO_NILE_SEG_MASK:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_bank_mask;
         case IO_NILE_SEG_MASK + 1:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_bank_mask >> 8;
         case IO_NILE_SPI_CNT:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_spi_cnt;
         case IO_NILE_SPI_CNT + 1:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_spi_cnt >> 8;
         case IO_NILE_EMU_CNT:
-            if(!is_debugger && !(nile_pow_cnt & NILE_POW_IO_NILE)) break;
             return nile_emu_cnt;
     }
     return 0x00;
 }
 
 void nileswan_io_write(uint32_t index, uint8_t value) {
+    if((index == 0xCA || index == 0xCB) && (nile_pow_cnt & NILE_POW_IO_2003))
+        RTC_Write(index, value);
+
     switch (index) {
         case IO_CART_FLASH:
             if(!(nile_pow_cnt & NILE_POW_IO_2003)) break;
@@ -377,7 +385,7 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
         } break;
         case IO_NILE_EMU_CNT:
             if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
-            nile_emu_cnt = value;
+            nile_emu_cnt = value & 0x0F;
             break;
     }
 }
@@ -438,6 +446,12 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
 uint8_t nileswan_cart_read(uint32_t index, bool is_debugger) {
     uint8_t *buffer;
     resolve_bank(index, &buffer, false, is_debugger);
+    if ((nile_emu_cnt & NILE_EMU_FLASH_FSM) && flash_enable && (index & 0xF0000) == 0x10000) {
+      if (nile_ww_state == WW_STATE_FAST)
+        return 0x00;
+      if (nile_ww_state == WW_STATE_ERASE)
+        return 0xFF;
+    }
     if (buffer != NULL) {
         return *buffer;
     } else {
@@ -448,6 +462,41 @@ uint8_t nileswan_cart_read(uint32_t index, bool is_debugger) {
 void nileswan_cart_write(uint32_t index, uint8_t value) {
     uint8_t *buffer;
     resolve_bank(index, &buffer, true, false);
+    if ((nile_emu_cnt & NILE_EMU_FLASH_FSM) && flash_enable && (index & 0xF0000) == 0x10000) {
+      if (nile_ww_state == WW_STATE_READ) {
+        if (value == 0xAA) nile_ww_state = WW_STATE_UNLOCK_1;
+        else nile_ww_state = WW_STATE_READ;
+      }
+      else if (nile_ww_state == WW_STATE_UNLOCK_1) {
+        if (value == 0x55) nile_ww_state = WW_STATE_UNLOCK_2;
+        else nile_ww_state = WW_STATE_READ;
+      }
+      else if (nile_ww_state == WW_STATE_UNLOCK_2) {
+        if (value == 0x20) nile_ww_state = WW_STATE_FAST;
+        else if (value == 0xA0) nile_ww_state = WW_STATE_WRITE;
+        else if (value == 0x10) nile_ww_state = WW_STATE_ERASE;
+        else if (value == 0x30) nile_ww_state = WW_STATE_ERASE;
+        else nile_ww_state = WW_STATE_READ;
+      }
+      else if (nile_ww_state == WW_STATE_FAST) {
+        if (value == 0xA0) nile_ww_state = WW_STATE_FAST_WRITE;
+        else if (value == 0x90) nile_ww_state = WW_STATE_READ; /* Reset mode */
+        else nile_ww_state = WW_STATE_FAST;
+      }
+      else if (nile_ww_state == WW_STATE_FAST_WRITE) {
+        *buffer = value;
+        nile_ww_state = WW_STATE_FAST;
+      }
+      else if (nile_ww_state == WW_STATE_WRITE) {
+        *buffer = value;
+        nile_ww_state = WW_STATE_READ;
+      }
+      else if (nile_ww_state == WW_STATE_ERASE) {
+        if (value == 0xAA) nile_ww_state = WW_STATE_UNLOCK_1;
+        else nile_ww_state = WW_STATE_READ;
+      }
+      return;
+    }
     if (buffer != NULL) {
         *buffer = value;
     }
