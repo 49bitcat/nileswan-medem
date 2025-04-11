@@ -109,16 +109,18 @@ void WSwan_SoundUpdate(void)
 
  for(unsigned int ch = 0; ch < 4; ch++)
  {
-  // Channel is disabled?
-  if(!(control & (1 << ch)))
-   continue;
-
   if(ch == 1 && (control & 0x20)) // Direct D/A mode?
   {
    MK_SAMPLE_CACHE_VOICE;
    SYNCSAMPLE(v30mz_timestamp);
+   continue;
   }
-  else if(ch == 2 && (control & 0x40) && sweep_value) // Sweep
+
+  // Channel is disabled?
+  if(!(control & (1 << ch)))
+   continue;
+
+  if(ch == 2 && (control & 0x40) && sweep_value) // Sweep
   {
    uint32 tmp_pt = 2048 - period[ch];
    uint32 meow_timestamp = v30mz_timestamp - run_time;
