@@ -27,6 +27,7 @@ static uint16_t bank_rom0, bank_rom1, bank_romL, bank_ram;
 static uint8_t flash_enable;
 static uint8_t nile_pow_cnt, nile_emu_cnt;
 static uint16_t nile_spi_cnt, nile_bank_mask;
+static int8_t nile_fpga_core;
 
 enum
 {
@@ -116,6 +117,7 @@ void nile_fpga_reset(void) {
 }
 
 bool nileswan_init(void) {
+    nile_fpga_core = -1;
     nile_fpga_reset();
     nile_spi_mcu_reset(true, false);
     nile_spi_flash_reset(true);
@@ -348,6 +350,8 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
             pow_cnt_update(value);
             break;
         case IO_NILE_WARMBOOT_CNT:
+            nile_fpga_core = value & 0x3;
+            printf("nileswan/fpga: warmboot to core %d\n", nile_fpga_core);
             nile_fpga_reset();
             break;
         case IO_NILE_SEG_MASK:

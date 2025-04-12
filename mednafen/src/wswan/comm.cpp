@@ -26,7 +26,7 @@
 #include <signal.h>
 #endif
 
-#define WS_COMM_DEBUG
+// #define WS_COMM_DEBUG
 
 #ifdef WS_COMM_DEBUG
 #define Comm_debug_printf printf
