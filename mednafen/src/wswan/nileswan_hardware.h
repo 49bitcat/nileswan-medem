@@ -71,11 +71,15 @@
 #define NILE_POW_UNLOCK    0xDD
 #define IO_NILE_POW_CNT    0xE2
 
-#define NILE_EMU_EEPROM_MASK 0x3
-#define NILE_EMU_EEPROM_128B 0x0
-#define NILE_EMU_EEPROM_1KB  0x1
-#define NILE_EMU_EEPROM_2KB  0x2
-#define NILE_EMU_FLASH_FSM   0x4
+#define NILE_EMU_EEPROM_MASK   0x03
+#define NILE_EMU_EEPROM_128B   0x00
+#define NILE_EMU_EEPROM_1KB    0x01
+#define NILE_EMU_EEPROM_2KB    0x02
+#define NILE_EMU_FLASH_FSM     0x04
+#define NILE_EMU_ROM_BUS_16BIT 0x00
+#define NILE_EMU_ROM_BUS_8BIT  0x08
+#define NILE_EMU_SRAM_32KB     0x10
+
 #define IO_NILE_EMU_CNT      0xE3
 
 #define NILE_SEG_RAM_MASK  0xF
@@ -94,6 +98,11 @@
 #define NILE_SEG_ROM_BOOT      511
 
 #define IO_NILE_WARMBOOT_CNT 0xE6
+#define IO_NILE_BOARD_REVISION 0xE6
+
+#define IO_NILE_IRQ_ENABLE 0xE8
+#define IO_NILE_IRQ_STATUS 0xE9
+#define NILE_IRQ_MCU       0x01
 
 /* SPI flash defines */
 

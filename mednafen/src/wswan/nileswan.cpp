@@ -12,6 +12,7 @@
 
 #define PSRAM_MAX_BANK 255
 #define SRAM_MAX_BANK 7
+#define NILE_EMULATED_BOARD_REVISION 1
 
 namespace MDFN_IEN_WSWAN
 {
@@ -292,6 +293,8 @@ uint8_t nileswan_io_read(uint32_t index, bool is_debugger) {
             return nile_spi_cnt >> 8;
         case IO_NILE_EMU_CNT:
             return nile_emu_cnt;
+        case IO_NILE_BOARD_REVISION:
+            return NILE_EMULATED_BOARD_REVISION;
     }
     return 0x00;
 }
@@ -389,7 +392,7 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
         } break;
         case IO_NILE_EMU_CNT:
             if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
-            nile_emu_cnt = value & 0x0F;
+            nile_emu_cnt = value & 0x1F;
             break;
     }
 }
@@ -423,6 +426,9 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
 
         if (physical_bank <= SRAM_MAX_BANK) {
             if (nile_pow_cnt & NILE_POW_SRAM) {
+                if (nile_emu_cnt & NILE_EMU_SRAM_32KB) {
+                    physical_address &= ~0x8000;
+                }
                 *buffer = nile_sram + physical_address;
             }
         } else if (physical_bank == NILE_SEG_RAM_IPC) {
