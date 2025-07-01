@@ -72,18 +72,42 @@ uint32 PCE_InDebug = 0;
 uint64 PCE_TimestampBase;	// Only used with the debugger for the time being.
 
 static bool IsSGX;
+static bool IsNAV;
+static bool IsSGXorNAV;
 static bool IsHES;
 
 // Accessed in debug.cpp
 static uint8 BaseRAM[32768]; // 8KB for PCE, 32KB for Super Grafx
 uint8 PCE_PeekMainRAM(uint32 A)
 {
- return BaseRAM[A & ((IsSGX ? 32768 : 8192) - 1)];
+ return BaseRAM[A & ((IsSGXorNAV ? 32768 : 8192) - 1)];
 }
 
 void PCE_PokeMainRAM(uint32 A, uint8 V)
 {
- BaseRAM[A & ((IsSGX ? 32768 : 8192) - 1)] = V;
+ BaseRAM[A & ((IsSGXorNAV ? 32768 : 8192) - 1)] = V;
+}
+
+//static uint8 NaviROM[0x800000];
+uint8 PCE_PeekNaviROM(uint32 A)
+{
+ if (A < 0x200000)
+   return( HuC_PeekHuCROM(0x20000 + A) );
+
+ else if ((A >= 0x400000) && (A < 0x600000))
+   return( HuC_PeekHuCROM(0x20000 + (A - 0x200000)) );
+
+ else
+   return(0xff);
+}
+
+void PCE_PokeNaviROM(uint32 A, uint8 V)
+{
+ if (A < 0x200000)
+   HuC_PokeHuCROM( (0x20000 + A), V);
+
+ else if ((A >= 0x400000) && (A < 0x600000))
+   HuC_PokeHuCROM( (0x20000 + (A - 0x200000)), V);
 }
 
 
@@ -107,12 +131,12 @@ static DECLFW(PCENullWrite)
  }
 }
 
-static DECLFR(BaseRAMReadSGX)
+static DECLFR(BaseRAMReadSGXorNAV)
 {
  return(BaseRAM[A & 0x7FFF]);
 }
 
-static DECLFW(BaseRAMWriteSGX)
+static DECLFW(BaseRAMWriteSGXorNAV)
 {
  BaseRAM[A & 0x7FFF] = V;
 }
@@ -291,7 +315,7 @@ static void LoadCommonPre(void);
 
 static bool TestMagic(GameFile* gf)
 {
- if(gf->ext != "hes" && gf->ext != "pce" && gf->ext != "sgx")
+ if(gf->ext != "hes" && gf->ext != "pce" && gf->ext != "sgx" && gf->ext != "nav")
   return false;
 
  return true;
@@ -365,6 +389,8 @@ static MDFN_COLD void Load(GameFile* gf)
 
   IsHES = false;
   IsSGX = false;
+  IsNAV = false;
+  IsSGXorNAV = false;
 
   gf->stream->read(hes_header, 4);
   gf->stream->seek(0, SEEK_SET);
@@ -388,7 +414,12 @@ static MDFN_COLD void Load(GameFile* gf)
 
    crc = HuC_Load(gf->stream, MDFN_GetSettingB("pce.disable_bram_hucard"));
 
-   if(gf->ext == "sgx")
+   if(gf->ext == "nav") {
+    IsNAV = true;
+    IsSGXorNAV = true;
+    MDFN_printf(_("Navigator:\n"));
+   }
+   else if(gf->ext == "sgx")
     IsSGX = true;
    else
    {
@@ -441,28 +472,31 @@ static MDFN_COLD int LoadCommon(void)
  if(IsHES)
   IsSGX = 1;
  // Don't modify IsSGX past this point.
- const uint32 vram_size = MDFN_GetSettingUI("pce.vramsize");
+ const uint32 vram_size = IsNAV ? 65536 : MDFN_GetSettingUI("pce.vramsize");
 
  vce = new VCE(IsSGX, vram_size);
  vce->SetVDCUnlimitedSprites(MDFN_GetSettingB("pce.nospritelimit"));
  vce->SetMWRTiming(MDFN_GetSettingB("pce.mwrtiming_approx"));
 
 
+ if(IsNAV)
+  MDFN_printf("GPS Navigator Hardware Emulation Enabled.\n");
+
  if(IsSGX)
   MDFN_printf("SuperGrafx Emulation Enabled.\n");
 
  for(int i = 0xF8; i < 0xFC; i++)
  {
-  HuCPU.SetReadHandler(i, IsSGX ? BaseRAMReadSGX : BaseRAMRead);
-  HuCPU.SetWriteHandler(i, IsSGX ? BaseRAMWriteSGX : BaseRAMWrite);
+  HuCPU.SetReadHandler(i, IsSGXorNAV ? BaseRAMReadSGXorNAV : BaseRAMRead);
+  HuCPU.SetWriteHandler(i, IsSGXorNAV ? BaseRAMWriteSGXorNAV : BaseRAMWrite);
 
-  if(IsSGX)
+  if(IsSGXorNAV)
    HuCPU.SetFastRead(i, BaseRAM + (i & 0x3) * 8192);
   else
    HuCPU.SetFastRead(i, BaseRAM);
  }
 
- MDFNMP_AddRAM(IsSGX ? 32768 : 8192, 0xf8 * 8192, BaseRAM);
+ MDFNMP_AddRAM(IsSGXorNAV ? 32768 : 8192, 0xf8 * 8192, BaseRAM);
 
  HuCPU.SetReadHandler(0xFF, IORead);
  HuCPU.SetWriteHandler(0xFF, IOWrite);
@@ -515,7 +549,7 @@ static MDFN_COLD int LoadCommon(void)
  vce->SetShowHorizOS(MDFN_GetSettingB("pce.h_overscan")); 
 
 #ifdef WANT_DEBUGGER
- PCEDBG_Init(IsSGX, psg, vram_size);
+ PCEDBG_Init(IsSGX, IsNAV, psg, vram_size);
 #endif
 
  return(1);
@@ -1009,7 +1043,7 @@ static void StateAction(StateMem *sm, const unsigned load, const bool data_only)
 {
  SFORMAT StateRegs[] =
  {
-  SFPTR8(BaseRAM, IsSGX? 32768 : 8192),
+  SFPTR8(BaseRAM, IsSGXorNAV ? 32768 : 8192),
   SFVAR(PCE_TimestampBase),
   SFVAR(bBRAMEnabled),
 
@@ -1196,6 +1230,7 @@ static const FileExtensionSpecStruct KnownExtensions[] =
  { ".pce",   0, gettext_noop("PC Engine ROM Image") },
  { ".hes", -20, gettext_noop("PC Engine Music Rip") },
  { ".sgx",   0, gettext_noop("SuperGrafx ROM Image") },
+ { ".nav",   0, gettext_noop("GPS Navi ROM Image") },
  { NULL, 0, NULL }
 };
 

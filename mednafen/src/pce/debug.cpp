@@ -79,9 +79,13 @@ static uint32 vram_addr_mask;
 static PCE_PSG *psg = NULL;
 
 static bool IsSGX;
+static bool IsNAV;
+static bool IsSGXorNAV;
 
 static void RedoDH(void);
 static void SyscardFuncLog(uint32 PC);
+
+extern uint8 HuCNaviLatch[];
 
 //
 //
@@ -1208,6 +1212,38 @@ char *PCEDBG_ShiftJIS_to_UTF8(const uint16 sjc)
  return(ret);
 }
 
+static uint32 GetRegister_HuCNavi(const unsigned int id, char *special, const uint32 special_len)
+{
+ if(id == HuC6280::GSREG_NAVI0)
+ {
+  return(HuCNaviLatch[0]);
+ }
+ else if(id == HuC6280::GSREG_NAVI1)
+ {
+  return(HuCNaviLatch[1]);
+ }
+ else if(id == HuC6280::GSREG_NAVI2)
+ {
+  return(HuCNaviLatch[2]);
+ }
+}
+
+static void SetRegister_HuCNavi(const unsigned int id, uint32 value)
+{
+ if(id == HuC6280::GSREG_NAVI0)
+ {
+  HuCNaviLatch[0] = value;
+ }
+ else if(id == HuC6280::GSREG_NAVI1)
+ {
+  HuCNaviLatch[1] = value;
+ }
+ else if(id == HuC6280::GSREG_NAVI2)
+ {
+  HuCNaviLatch[2] = value;
+ }
+}
+
 extern uint64 PCE_TimestampBase;
 static uint32 GetRegister_HuC6280(const unsigned int id, char *special, const uint32 special_len)
 {
@@ -1285,6 +1321,25 @@ static void SetRegister_CD(const unsigned int id, uint32 value)
  PCECD_SetRegister(id, value);
 }
 
+
+static const RegType Regs_HuCNavi[] =
+{
+	{ 0, 0, "---NAVI----", "", 0xFFFF },
+	{ HuC6280::GSREG_NAVI0, 1, "Bnk20-3F", "MetaBank 20-3F", 1 },
+	{ HuC6280::GSREG_NAVI1, 1, "Bnk40-5F", "MetaBank 40-5F", 1 },
+	{ HuC6280::GSREG_NAVI2, 1, "Bnk60-7F", "MetaBank 60-7F", 1 },
+	{ 0, 0, "-----------", "", 0xFFFF },
+
+	{ 0, 0, "", "", 0 },
+};
+
+static const RegGroupType RegsGroup_HuCNavi =
+{
+	"HuC6280",
+        Regs_HuCNavi,
+        GetRegister_HuCNavi,
+        SetRegister_HuCNavi
+};
 
 static const RegType Regs_HuC6280[] =
 {
@@ -1650,8 +1705,18 @@ static void GetAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
  {
   while(Length--)
   {
-   Address &= (IsSGX ? 32768 : 8192) - 1;
+   Address &= (IsSGXorNAV ? 32768 : 8192) - 1;
    *Buffer = PCE_PeekMainRAM(Address);
+   Address++;
+   Buffer++;
+  }
+ }
+ else if(!strcmp(name, "navirom"))
+ {
+  while(Length--)
+  {
+   Address &= 0x7FFFFF;
+   *Buffer = PCE_PeekNaviROM(Address);
    Address++;
    Buffer++;
   }
@@ -1719,8 +1784,18 @@ static void PutAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
  {
   while(Length--)
   {
-   Address &= (IsSGX ? 32768 : 8192) - 1;
+   Address &= (IsSGXorNAV ? 32768 : 8192) - 1;
    PCE_PokeMainRAM(Address, *Buffer);
+   Address++;
+   Buffer++;
+  }
+ }
+ else if(!strcmp(name, "navirom"))
+ {
+  while(Length--)
+  {
+   Address &= 0x7FFFFF;
+   PCE_PokeNaviROM(Address, *Buffer);
    Address++;
    Buffer++;
   }
@@ -1798,7 +1873,7 @@ void PCEDBG_Kill(void)
  Cleanup();
 }
 
-void PCEDBG_Init(bool sgx, PCE_PSG *new_psg, const uint32 vram_size)
+void PCEDBG_Init(bool sgx, bool nav, PCE_PSG *new_psg, const uint32 vram_size)
 {
  try
  {
@@ -1827,8 +1902,14 @@ void PCEDBG_Init(bool sgx, PCE_PSG *new_psg, const uint32 vram_size)
   psg = new_psg;
 
   IsSGX = sgx;
+  IsNAV = nav;
+  IsSGXorNAV = IsSGX | IsNAV;
+
+  if(IsNAV)
+   MDFNDBG_AddRegGroup(&RegsGroup_HuCNavi);
 
   MDFNDBG_AddRegGroup(&RegsGroup_HuC6280);
+
   MDFNDBG_AddRegGroup(&RegsGroup_VDC);
 
   if(IsSGX)
@@ -1836,7 +1917,12 @@ void PCEDBG_Init(bool sgx, PCE_PSG *new_psg, const uint32 vram_size)
 
   ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "cpu", "CPU Logical", 16, 0, true);
   ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "physical", "CPU Physical", 21, 0, true);
-  ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "ram", "RAM", IsSGX ? 15 : 13, 0, true);
+  ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "ram", "RAM", IsSGXorNAV ? 15 : 13, 0, true);
+
+  if(IsNAV)
+  {
+   ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "navirom", "Navigator ROM", 23, 0, false);
+  }
 
   ASpace_AddPalette(Do16BitGet, Do16BitPut, "pram", "VCE Palette RAM", 10, 0, false, 2, ENDIAN_LITTLE, PALETTE_PCE);
 
