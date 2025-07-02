@@ -11,7 +11,7 @@ jobs:
     env:
       SDL2_VERSION: 2.28.2
       SYSROOT: /usr/x86_64-w64-mingw32/sys-root/mingw
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     container: fedora:latest
     steps:
       - name: Install dependencies
@@ -29,9 +29,9 @@ jobs:
           name: Mednafen (Windows)
           path: dist/*
 
-  # === Linux (Ubuntu 20.04) ===
+  # === Linux (Ubuntu 22.04) ===
   linux64:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Install required dependencies
         run: sudo apt-get update && sudo apt-get install build-essential pkg-config libasound2-dev libflac-dev libsdl2-dev zip zlib1g-dev
