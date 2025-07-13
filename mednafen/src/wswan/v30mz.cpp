@@ -907,8 +907,14 @@ OP( 0xf6, i_f6pre ) { uint32 tmp; uint32 uresult,uresult2; int32 result,result2;
 		case 0x00: tmp &= FETCH; I.CarryVal = I.OverVal = I.AuxVal=0; SetSZPF_Byte(tmp); CLKM(2,1); break; /* TEST */
 		case 0x08: CLKM(2, 1); break; /* undefined opcode */
  		case 0x10: PutbackRMByte(ModRM,~tmp); CLKM(3,1); break; /* NOT */
-		
-		case 0x18: I.CarryVal=(tmp!=0);tmp=(~tmp)+1; SetSZPF_Byte(tmp); PutbackRMByte(ModRM,tmp&0xff); CLKM(3,1); break; /* NEG */
+		case 0x18: { /* NEG */
+			uint32 src = tmp;
+			uint32 dst = 0;
+			SUBB;
+			PutbackRMByte(ModRM,dst&0xff);
+			CLKM(3,1);
+			break;
+		}
 		case 0x20: uresult = I.regs.b[AL]*tmp; I.regs.w[AW]=(uint16)uresult; I.CarryVal=I.OverVal=(I.regs.b[AH]!=0); CLKM(4,3); break; /* MULU */
 		case 0x28: result = (int16)((int8)I.regs.b[AL])*(int16)((int8)tmp); I.regs.w[AW]=(uint16)result; I.CarryVal=I.OverVal=(I.regs.b[AH]!=0); CLKM(4,3); break; /* MUL */
 		case 0x30: if (tmp) { DIVUB; } else nec_interrupt(0); CLKM(16,15); break;
@@ -922,7 +928,14 @@ OP( 0xf7, i_f7pre   ) { uint32 tmp,tmp2; uint32 uresult,uresult2; int32 result,r
 		case 0x00: FETCHuint16(tmp2); tmp &= tmp2; I.CarryVal = I.OverVal = I.AuxVal=0; SetSZPF_Word(tmp); CLKM(2,1); break; /* TEST */
 		case 0x08: CLKM(2, 1); break; /* undefined opcode */
  		case 0x10: PutbackRMWord(ModRM,~tmp); CLKM(3,1); break; /* NOT */
-		case 0x18: I.CarryVal=(tmp!=0); tmp=(~tmp)+1; SetSZPF_Word(tmp); PutbackRMWord(ModRM,tmp&0xffff); CLKM(3,1); break; /* NEG */
+ 		case 0x18: { /* NEG */
+			uint32 src = tmp;
+			uint32 dst = 0;
+			SUBW;
+			PutbackRMWord(ModRM,dst&0xffff);
+			CLKM(3,1);
+			break;
+		}
 		case 0x20: uresult = I.regs.w[AW]*tmp; I.regs.w[AW]=uresult&0xffff; I.regs.w[DW]=((uint32)uresult)>>16; I.CarryVal=I.OverVal=(I.regs.w[DW]!=0); CLKM(4,3); break; /* MULU */
 		case 0x28: result = (int32)((int16)I.regs.w[AW])*(int32)((int16)tmp); I.regs.w[AW]=result&0xffff; I.regs.w[DW]=result>>16; I.CarryVal=I.OverVal=(I.regs.w[DW]!=0); CLKM(4,3); break; /* MUL */
 		case 0x30: if (tmp) { DIVUW; } else nec_interrupt(0); CLKM(24,23); break;
