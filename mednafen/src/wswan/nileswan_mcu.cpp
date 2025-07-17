@@ -204,6 +204,12 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
         uint16_t cmd = spi_mcu.rx.data[0] & 0x7F;
         uint16_t arg = (spi_mcu.rx.data[0] >> 7) | spi_mcu.rx.data[1] << 1;
         switch (cmd) {
+            case MCU_SPI_CMD_FREQ: {
+                printf("nileswan/spi/mcu: set SPI speed to %d (no-op)\n", arg);
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                response[0] = 1;
+                spi_mcu_send_response(1, response);
+            } break;
             case MCU_SPI_CMD_EEPROM_MODE: {
                 printf("nileswan/spi/mcu: set EEPROM mode to %d\n", arg);
                 spi_mcu_persistent.eeprom_mode = arg;
