@@ -83,6 +83,7 @@ enum
  GFX_GSREG_HBCOUNTER,
  GFX_GSREG_VBCOUNTER,
  GFX_GSREG_BGCOLOR,
+ GFX_GSREG_CURRLINE,
  GFX_GSREG_LINECOMPARE,
  GFX_GSREG_SPRBASE,
  GFX_GSREG_SPRITESTART,
@@ -115,9 +116,10 @@ static const RegType WSwanGfxRegs[] =
  { GFX_GSREG_BTIMERCONTROL,	4,	"BTimerControl", "VB/HB Timer Control", 1 },
  { GFX_GSREG_HBTIMERPERIOD,	2,	"HBTimerPeriod", "Horizontal blank timer counter period", 2 },
  { GFX_GSREG_VBTIMERPERIOD,	2,	"VBTimerPeriod", "Vertical blank timer counter period", 2 },
- { GFX_GSREG_HBCOUNTER,		8,	"HBCounter", "Horizontal blank counter", 1 },
- { GFX_GSREG_VBCOUNTER,		6,	"VBCounter", "Vertical blank counter", 1 },
+ { GFX_GSREG_HBCOUNTER,		6,	"HBCounter", "Horizontal blank counter", 2 },
+ { GFX_GSREG_VBCOUNTER,		6,	"VBCounter", "Vertical blank counter", 2 },
  { GFX_GSREG_BGCOLOR,		10,	"BGColor", "Background Color", 1 },
+ { GFX_GSREG_CURRLINE,		9,	"CurrLine", "Line Current", 1 },
  { GFX_GSREG_LINECOMPARE,	6,	"LineCompare", "Line Compare", 1 },
  { 0, 0, "----BACKGROUNDS----", "", 0xFFFF },
  { GFX_GSREG_FGBGLOC,		10,	"FGBGLoc", "FG/BG Map Location", 1 },
@@ -178,6 +180,9 @@ uint32 WSwan_GfxGetRegister(const unsigned id, char* special, const uint32 speci
 
   case GFX_GSREG_BGCOLOR:
 	return(BGColor);
+
+  case GFX_GSREG_CURRLINE:
+	return(wsLine);
 
   case GFX_GSREG_LINECOMPARE:
 	return(LineCompare);
