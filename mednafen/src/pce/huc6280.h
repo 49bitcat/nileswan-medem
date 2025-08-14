@@ -193,7 +193,10 @@ class alignas(128) HuC6280
 	 GSREG_TIML,
 	 GSREG_TIMD,
 	 GSREG_SECONDS,
-	 GSREG_STAMP
+	 GSREG_STAMP,
+	 GSREG_NAVI0,
+	 GSREG_NAVI1,
+	 GSREG_NAVI2
 	};
 
 	INLINE uint32 GetRegister(const unsigned int id, char *special = NULL, const uint32 special_len = 0)

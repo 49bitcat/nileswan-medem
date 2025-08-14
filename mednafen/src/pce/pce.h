@@ -32,6 +32,9 @@ bool PCE_IsBRAMEnabled(void);
 uint8 PCE_PeekMainRAM(uint32 A);
 void PCE_PokeMainRAM(uint32 A, uint8 V);
 
+uint8 PCE_PeekNaviROM(uint32 A);
+void PCE_PokeNaviROM(uint32 A, uint8 V);
+
 };
 
 #endif

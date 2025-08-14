@@ -36,7 +36,7 @@ MDFN_HIDE extern bool PCE_UsageMapOn;
 
 MDFN_HIDE extern DebuggerInfoStruct PCEDBGInfo;
 
-void PCEDBG_Init(bool sgx, PCE_PSG *psg, const uint32 vram_size) MDFN_COLD;
+void PCEDBG_Init(bool sgx, bool nav, PCE_PSG *psg, const uint32 vram_size) MDFN_COLD;
 void PCEDBG_Kill(void) MDFN_COLD;
 
 };

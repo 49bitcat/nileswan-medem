@@ -43,7 +43,10 @@ static uint8 *ROMMap[0x100] = { NULL };
 
 static bool IsPopulous;
 bool IsTsushin;
+bool IsNAV;
 bool PCE_IsCD;
+
+uint8 HuCNaviLatch[3];
 
 static uint8 *TsushinRAM = NULL; // 0x8000
 static uint8 *PopRAM = NULL; // 0x8000
@@ -159,6 +162,50 @@ static DECLFW(HuCRAMWrite)
  ROMMap[A >> 13][A] = V;
 }
 
+static DECLFR(HuCNaviReadLow)
+{
+ return(HuCROM[A]);
+}
+
+static DECLFR(HuCNaviRead)
+{
+ static uint8 bank;
+ static uint8 addrindex;
+ static uint8 naviindex;
+
+ bank = (A >> 13);
+ addrindex = (bank >> 5) - 1;  // addr must be > 0x2000
+ naviindex = HuCNaviLatch[addrindex];
+
+ if ((naviindex & 8) == 0)
+ {
+   if ((naviindex & 0x10) == 0)
+   {
+     return(HuCROM[0x20000 + (HuCNaviLatch[naviindex] * 0x20000) + ((bank & 0x1F) * 0x2000) + (A & 0x1FFF) ] );
+   }
+   else
+   {
+     return(HuCROM[0x20000 + ( (HuCNaviLatch[naviindex]-8) * 0x20000) + ((bank & 0x1F) * 0x2000) + (A & 0x1FFF) ] );
+   }
+ }
+ else
+   return(0xFF);
+}
+
+static DECLFR(HuCNaviLatchUpdate)
+{
+ static uint8 HuCNaviLatchInd;
+
+ if ((A & 0xC0) != 0)
+ {
+   HuCNaviLatchInd = ((A & 0xC0)>>6) - 1;     // address 0xX040 -> 0, 0xX080 -> 1, 0xX0C0 -> 2
+
+   HuCNaviLatch[HuCNaviLatchInd] = A & 0x1F;  // 0x00-0x07 are mapped; 0x08-0x0F are open
+                                              // 0x10-0x17 are mapped; 0x18-0x1F are open
+ }
+ return(0xFF);
+}
+
 static uint8 HuCSF2Latch;
 static uint8 HuCSF2BankMask;
 
@@ -211,6 +258,7 @@ uint32 HuC_Load(Stream* s, bool DisableBRAM, SysCardType syscard)
 {
  uint32 crc = 0;
  const uint32 sf2_threshold = 2048 * 1024;
+ bool nav_mapper = false; 
  bool sf2_mapper = false;
  bool mcg_mapper = false;
  bool ted_mapper = false;
@@ -234,6 +282,9 @@ uint32 HuC_Load(Stream* s, bool DisableBRAM, SysCardType syscard)
 
    s->read(buf, 8192);
 
+   if((m_len > (512 * 1024)) && !memcmp(buf + 0x10, "Portable Viwer", 14))	// This is *NOT* a typo. The ROM really contains that.
+    nav_mapper = true;
+
    if(!memcmp(buf + 0x1FD0, "MCGENJIN", 8))
     mcg_mapper = true;
 
@@ -246,7 +297,7 @@ uint32 HuC_Load(Stream* s, bool DisableBRAM, SysCardType syscard)
    s->seek(-8192, SEEK_CUR);	// Seek backwards so we don't undo skip copier header.
   }
 
-  if(!syscard && m_len >= sf2_threshold && !mcg_mapper && !ted_mapper)
+  if(!syscard && m_len >= sf2_threshold && !nav_mapper && !mcg_mapper && !ted_mapper)
   {
    sf2_mapper = true;
 
@@ -330,6 +381,33 @@ uint32 HuC_Load(Stream* s, bool DisableBRAM, SysCardType syscard)
    MDFN_printf(_("ROM:       %lluKiB\n"), (unsigned long long)(std::min<uint64>(m_len, len) / 1024));
    MDFN_printf(_("ROM CRC32: 0x%08x\n"), crc);
    MDFN_printf(_("ROM MD5:   0x%s\n"), md5_context::asciistr(MDFNGameInfo->MD5, 0).c_str());
+  }
+
+  if (nav_mapper)
+  {
+    // should be:
+    // 00 - 1F : read ROM directly
+    // 20 - 3F : read reg 0
+    // 40 - 5F : read reg 1
+    // 60 - 7F : read reg 2
+    // 80 : Navilatcher
+    //
+    for(int x = 0x0; x < 0x20; x++) {
+      HuCPU.SetReadHandler(x, HuCNaviReadLow);
+    }
+    for(int x = 0x20; x < 0x80; x++)
+    {
+     HuCPU.SetFastRead(x, NULL);		// Make sure our reads go through our read function, and not a table lookup
+     HuCPU.SetReadHandler(x, HuCNaviRead);
+    }
+    HuCPU.SetReadHandler(0x80, HuCNaviLatchUpdate);
+
+    MDFN_printf("GPS Navi Mapper\n");
+
+    HuCNaviLatch[0] = 0;
+    HuCNaviLatch[1] = 0;
+    HuCNaviLatch[2] = 0;
+    IsNAV = true;
   }
 
   if(m_len == 0x60000)
@@ -657,6 +735,16 @@ void HuC_Power(void)
   mcg->Power();
 }
 
+
+uint8 HuC_PeekHuCROM(uint32 A)
+{
+ return(HuCROM[A]);
+}
+
+void HuC_PokeHuCROM(uint32 A, uint8 V)
+{
+ HuCROM[A] = V;
+}
 
 bool HuC_IsBRAMAvailable(void)
 {
