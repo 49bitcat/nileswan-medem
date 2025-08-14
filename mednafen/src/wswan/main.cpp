@@ -391,8 +391,10 @@ static void Load(GameFile* gf)
     MDFNGameInfo->rotated = MDFN_ROTATE90;
   }
 
+  bool IsNile = false;
   if(gf->ext == "ipl0")
   {
+    IsNile = true;
     nileswan_init();
     nileswan_open_spi((gf->dir + "/nileswan.spi").c_str());
     nileswan_open_tf((gf->dir + "/nileswan.img").c_str());
@@ -401,7 +403,7 @@ static void Load(GameFile* gf)
   MDFNMP_Init(16384, (1 << 20) / 1024);
 
   #ifdef WANT_DEBUGGER
-  WSwanDBG_Init();
+  WSwanDBG_Init(IsNile);
   #endif
 
   WSwan_MemoryInit(MDFN_GetSettingB("wswan.language"), wsc, SRAMSize, IsWW);

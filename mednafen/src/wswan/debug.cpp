@@ -21,6 +21,7 @@
 #include "dis/disasm.h"
 #include "memory.h"
 #include "gfx.h"
+#include "nileswan.h"
 #include <trio/trio.h>
 
 namespace MDFN_IEN_WSWAN
@@ -454,16 +455,30 @@ static const RegType MiscRegs[] =
  { 0x8000 | INT_GSREG_IENABLE,          4,      "IrqEnable",    "Interrupt Enable", 1 },
  { 0x8000 | INT_GSREG_IVECTORBASE,      3,      "IrqVectors",   "Interrupt Vector Base", 1 },
 
+ { 0, 0, "---------------", "", 0xFFFF },
+ { 0, 0, "", "", 0 },
+};
+
+static const RegType MiscRegsNile[] =
+{
  { 0, 0, "---NILE SWAN---", "", 0xFFFF },
- { 0x2D0,                               3,      "SramSelect",   "SRAM Bank Selector for 64KiB bank 0x1", 2 },
- { 0x2D2,                               3,      "Rom0Select",   "ROM Bank Selector for 64KiB bank 0x2", 2 },
- { 0x2D4,                               3,      "Rom1Select",   "ROM Bank Selector for 64KiB bank 0x3", 2 },
+ { 0x2D0,                               1,      "SramSelect",   "SRAM Bank Selector for 64KiB bank 0x1", 2 },
+ { 0x2D2,                               1,      "Rom0Select",   "ROM Bank Selector for 64KiB bank 0x2", 2 },
+ { 0x2D4,                               1,      "Rom1Select",   "ROM Bank Selector for 64KiB bank 0x3", 2 },
  { 0x1C0,                               3,      "RomLSelect",   "ROM Bank Base Selector for 64KiB banks 0x4-0xF", 1 },
- { 0x2E0,                               3,      "SpiControl",   "Cartridge SPI Transfer Control", 2 },
+ { 0x1CE,                               3,      "FlashSlect",   "SRAM/Flash Bank Toggle", 1 },
+ { 0x2E0,                               1,      "SpiControl",   "Cartridge SPI Transfer Control", 2 },
  { 0x1E2,                               3,      "PwrControl",   "", 1 },
- { 0x1E3,                               3,      "IrqControl",   "", 1 },
- { 0x2E4,                               5,      "BankMask",   "Cartridge SRAM/ROM Bank Mask", 2 },
- { 0x1E6,                               3,      "EmuControl",   "", 1 },
+ { 0x1E3,                               3,      "EmuControl",   "", 1 },
+ { 0x2E4,                               3,      "BankMask",   "Cartridge SRAM/ROM Bank Mask", 2 },
+ { 0x1E8,                               4,      "IrqEnable",   "", 1 },
+ { 0x1E9,                               4,      "IrqStatus",   "", 1 },
+
+ { 0, 0, "------IRQ------", "", 0xFFFF },
+ { 0x8000 | INT_GSREG_IASSERTED,        4,      "IrqAssert",    "Interrupt Asserted", 1 },
+ { 0x8000 | INT_GSREG_ISTATUS,          4,      "IrqStatus",    "Interrupt Status", 1 },
+ { 0x8000 | INT_GSREG_IENABLE,          4,      "IrqEnable",    "Interrupt Enable", 1 },
+ { 0x8000 | INT_GSREG_IVECTORBASE,      3,      "IrqVectors",   "Interrupt Vector Base", 1 },
 
  { 0, 0, "---------------", "", 0xFFFF },
  { 0, 0, "", "", 0 },
@@ -473,18 +488,25 @@ static uint32 Misc_GetRegister(const unsigned int id, char *special, const uint3
 {
  if(id & 0x8000)
   return(WSwan_InterruptGetRegister(id & ~0x8000, special, special_len));
+ else if (id >= 0x200)
+  return(nileswan_io_read(id & 0xFF, true) | (nileswan_io_read((id + 1) & 0xFF, true) << 8));
+ else if (id >= 0x100)
+  return(nileswan_io_read(id & 0xFF, true));
  else
   return(WSwan_MemoryGetRegister(id, special, special_len));
-} 
+}
 
 static void Misc_SetRegister(const unsigned int id, uint32 value)
 {
  if(id & 0x8000)
   WSwan_InterruptSetRegister(id & ~0x8000, value);
+ else if (id >= 0x200)
+  { nileswan_io_write(id & 0xFF, value); nileswan_io_write((id + 1) & 0xFF, value >> 8); }
+ else if (id >= 0x100)
+  nileswan_io_write(id & 0xFF, value);
  else
   WSwan_MemorySetRegister(id, value);
 }
-
 
 static const RegGroupType MiscRegsGroup =
 {
@@ -494,7 +516,15 @@ static const RegGroupType MiscRegsGroup =
  Misc_SetRegister,
 };
 
-void WSwanDBG_Init(void)
+static const RegGroupType MiscRegsGroupNile =
+{
+ "Misc",
+ MiscRegsNile,
+ Misc_GetRegister,
+ Misc_SetRegister,
+};
+
+void WSwanDBG_Init(bool is_nile)
 {
  WS_InDebug = 0;
 
@@ -503,7 +533,7 @@ void WSwanDBG_Init(void)
  memset(BTEntries, 0, sizeof(BTEntries));
 
  MDFNDBG_AddRegGroup(&V30MZRegsGroup);
- MDFNDBG_AddRegGroup(&MiscRegsGroup);
+ MDFNDBG_AddRegGroup(is_nile ? &MiscRegsGroupNile : &MiscRegsGroup);
 }
 
 
