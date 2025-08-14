@@ -406,7 +406,7 @@ static void Load(GameFile* gf)
   WSwanDBG_Init(IsNile);
   #endif
 
-  WSwan_MemoryInit(MDFN_GetSettingB("wswan.language"), wsc, SRAMSize, IsWW);
+  WSwan_MemoryInit(MDFN_GetSettingB("wswan.language"), wsc, SRAMSize, IsWW, IsNile);
 
   if(!IsWSR)
    WSwan_MemoryLoadNV();

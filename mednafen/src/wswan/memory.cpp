@@ -64,6 +64,7 @@ static bool language;
 
 //
 static bool IsWW;
+static bool IsNile;
 static uint8 WW_FlashLock;
 
 enum
@@ -506,12 +507,42 @@ static void GetAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
    Buffer++;
   }
  }
- else if(!strcmp(name, "sram") && sram_size)
+ else if(!strcmp(name, "rom") && !IsNile && rom_size)
+ {
+  while(Length--)
+  {
+   Address &= rom_size - 1;
+   *Buffer = wsCartROM[Address];
+   Address++;
+   Buffer++;
+  }
+ }
+ else if(!strcmp(name, "rom") && IsNile && nile_psram_size)
+ {
+  while(Length--)
+  {
+   Address &= nile_psram_size - 1;
+   *Buffer = nile_psram[Address];
+   Address++;
+   Buffer++;
+  }
+ }
+ else if(!strcmp(name, "sram") && !IsNile && sram_size)
  {
   while(Length--)
   {
    Address &= sram_size - 1;
    *Buffer = wsSRAM[Address];
+   Address++;
+   Buffer++;
+  }
+ }
+ else if(!strcmp(name, "sram") && IsNile && nile_sram_size)
+ {
+  while(Length--)
+  {
+   Address &= nile_sram_size - 1;
+   *Buffer = nile_sram[Address];
    Address++;
    Buffer++;
   }
@@ -605,12 +636,42 @@ static void PutAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
    Buffer++;
   }
  }
- else if(!strcmp(name, "sram") && sram_size)
+ else if(!strcmp(name, "rom") && !IsNile && rom_size)
+ {
+  while(Length--)
+  {
+   Address &= rom_size - 1;
+   wsCartROM[Address] = *Buffer;
+   Address++;
+   Buffer++;
+  }
+ }
+ else if(!strcmp(name, "rom") && IsNile && nile_psram_size)
+ {
+  while(Length--)
+  {
+   Address &= nile_psram_size - 1;
+   nile_psram[Address] = *Buffer;
+   Address++;
+   Buffer++;
+  }
+ }
+ else if(!strcmp(name, "sram") && !IsNile && sram_size)
  {
   while(Length--)
   {
    Address &= sram_size - 1;
    wsSRAM[Address] = *Buffer;
+   Address++;
+   Buffer++;
+  }
+ }
+ else if(!strcmp(name, "sram") && IsNile && nile_sram_size)
+ {
+  while(Length--)
+  {
+   Address &= nile_sram_size - 1;
+   nile_sram[Address] = *Buffer;
    Address++;
    Buffer++;
   }
@@ -856,9 +917,10 @@ void WSwan_MemorySaveNV(void)
  }
 }
 
-void WSwan_MemoryInit(bool lang, bool IsWSC, uint32 ssize, bool IsWW_arg)
+void WSwan_MemoryInit(bool lang, bool IsWSC, uint32 ssize, bool IsWW_arg, bool IsNile_arg)
 {
  IsWW = IsWW_arg;
+ IsNile = IsNile_arg;
 
  try
  {
@@ -899,14 +961,17 @@ void WSwan_MemoryInit(bool lang, bool IsWSC, uint32 ssize, bool IsWW_arg)
 
    ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "ports", "I/O Ports", 8);
 
-   ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "ieeprom", "Internal EEPROM", 11);
+   ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "rom", IsNile ? "Cartridge PSRAM" : "Cartridge ROM", (int)(log(IsNile ? nile_psram_size : rom_size) / log(2)));
 
    if(sram_size)
-    ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "sram", "Cartridge SRAM", (int)(log(sram_size) / log(2)));
+    ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "sram", "Cartridge SRAM", (int)(log(IsNile ? nile_sram_size : sram_size) / log(2)));
    if(eeprom_size)
     ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "eeprom", "Cartridge EEPROM", (int)(log(eeprom_size) / log(2)));
 
-   ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "nile_ipc", "Nileswan IPC", (int)(log(NILE_IPC_SIZE) / log(2)));
+   if(IsNile)
+     ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "nile_ipc", "Cartridge IPC", (int)(log(NILE_IPC_SIZE) / log(2)));
+
+   ASpace_Add(GetAddressSpaceBytes, PutAddressSpaceBytes, "ieeprom", "Internal EEPROM", 11);
   }
   #endif
 

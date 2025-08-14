@@ -15,7 +15,7 @@ MDFN_FASTCALL void WSwan_writemem20(uint32 address,uint8 data);
 MDFN_FASTCALL uint8 WSwan_readmem20_WW(uint32);
 MDFN_FASTCALL void WSwan_writemem20_WW(uint32 address,uint8 data);
 
-void WSwan_MemoryInit(bool lang, bool IsWSC, uint32 ssize, bool IsWW) MDFN_COLD;
+void WSwan_MemoryInit(bool lang, bool IsWSC, uint32 ssize, bool IsWW, bool IsNile) MDFN_COLD;
 void WSwan_MemoryKill(void) MDFN_COLD;
 
 void WSwan_MemoryLoadNV(void);

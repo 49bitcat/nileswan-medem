@@ -87,7 +87,8 @@ bool spi_buffer_pop(nile_spi_device_buffer_t *buffer, uint8_t *data, uint32_t le
 #define SPI_BUFFER_SIZE_BYTES 512
 #define SPI_BUFFER_MASK_BYTES (SPI_BUFFER_SIZE_BYTES - 1)
 
-static uint8_t *nile_psram, *nile_sram;
+uint8_t *nile_psram, *nile_sram;
+uint32_t nile_psram_size, nile_sram_size;
 static bool nileswan_initialized = false;
 
 uint8_t nile_ipc[NILE_IPC_SIZE];
@@ -126,7 +127,9 @@ bool nileswan_init(void) {
 
     if (!nileswan_initialized) {
         nile_psram = (uint8_t*) malloc(PSRAM_SIZE_BYTES);
+        nile_psram_size = PSRAM_SIZE_BYTES;
         nile_sram = (uint8_t*) malloc(SRAM_SIZE_BYTES);
+        nile_sram_size = SRAM_SIZE_BYTES;
     }
     nileswan_initialized = true;
 

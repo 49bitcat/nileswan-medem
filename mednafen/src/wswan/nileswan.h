@@ -18,6 +18,8 @@ typedef struct {
     uint32_t pos;
 } nile_spi_device_buffer_t;
 
+extern uint8_t *nile_psram, *nile_sram;
+extern uint32_t nile_psram_size, nile_sram_size;
 #define NILE_IPC_SIZE 512
 extern uint8_t nile_ipc[NILE_IPC_SIZE];
 

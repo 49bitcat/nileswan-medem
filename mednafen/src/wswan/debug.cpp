@@ -461,7 +461,7 @@ static const RegType MiscRegs[] =
 
 static const RegType MiscRegsNile[] =
 {
- { 0, 0, "---NILE SWAN---", "", 0xFFFF },
+ { 0, 0, "---CARTRIDGE---", "", 0xFFFF },
  { 0x2D0,                               1,      "SramSelect",   "SRAM Bank Selector for 64KiB bank 0x1", 2 },
  { 0x2D2,                               1,      "Rom0Select",   "ROM Bank Selector for 64KiB bank 0x2", 2 },
  { 0x2D4,                               1,      "Rom1Select",   "ROM Bank Selector for 64KiB bank 0x3", 2 },
