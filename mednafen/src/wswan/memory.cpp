@@ -308,6 +308,7 @@ static INLINE uint8 ReadPort(uint32 number)
 
    case 0xB0:
    case 0xB2:
+   case 0xB4:
    case 0xB6: return(WSwan_InterruptRead(number));
 
    case 0xC0: return(BankSelector[0] | 0x20);

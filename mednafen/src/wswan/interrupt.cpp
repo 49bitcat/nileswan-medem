@@ -23,7 +23,7 @@
 namespace MDFN_IEN_WSWAN
 {
 
-static const uint8 LevelTriggeredMask = (1U << WSINT_SERIAL_RECV);
+static const uint8 LevelTriggeredMask = 0x0D;
 
 static uint8 IAsserted;
 static uint8 IStatus;
@@ -42,9 +42,9 @@ static void RecalcInterrupt(void)
  IOn_Which = 0;
  IVector_Cache = 0;
 
- for(int i = 0; i < 8; i++)
+ for(int i = 7; i >= 0; i--)
  {
-  if(IStatus & IEnable & (1U << i))
+  if(IStatus & (1U << i))
   {
    IOn_Cache = true;
    IOn_Which = i;
@@ -82,12 +82,11 @@ void WSwan_InterruptWrite(uint32 A, uint8 V)
  //printf("Write: %04x %02x\n", A, V);
  switch(A)
  {
-  case 0xB0: IVectorBase = V;
+  case 0xB0: IVectorBase = V & 0xf8;
 	     RecalcInterrupt();
 	     break;
 
   case 0xB2: IEnable = V;
-	     IStatus &= IEnable;
 	     RecalcInterrupt();
 	     break;
 
@@ -103,9 +102,9 @@ uint8 WSwan_InterruptRead(uint32 A)
  //printf("Read: %04x\n", A);
  switch(A)
  {
-  case 0xB0: return(IVectorBase);
+  case 0xB0: return((IVectorBase & 0xf8) | IOn_Which);
   case 0xB2: return(IEnable);
-  case 0xB6: return(1 << IOn_Which); //return(IStatus);
+  case 0xB4: return(IStatus);
  }
  return(0);
 }
