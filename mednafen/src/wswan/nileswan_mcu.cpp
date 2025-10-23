@@ -21,6 +21,7 @@ struct {
     uint8_t boot_step;
     uint16_t boot_erase_count;
     uint32_t boot_dest_address;
+    int16_t cdc_unget;
 } spi_mcu;
 
 static bool spi_mcu_persistent_initialized = false;
@@ -257,6 +258,11 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
                 uint16_t len = 0;
                 for (; len < arg; len++) {
+                    if (spi_mcu.cdc_unget >= 0) {
+                        response[len] = spi_mcu.cdc_unget;
+                        spi_mcu.cdc_unget = -1;
+                        continue;
+                    }
                     if (!Comm_RecvByte(response + len))
                         break;
                 }
@@ -274,6 +280,20 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                         break;
                 }
                 spi_buffer_pop(&spi_mcu.rx, NULL, arg);
+                spi_mcu_send_response(2, &len);
+            } break;
+            case MCU_SPI_CMD_USB_CDC_AVAILABLE: {
+                // TODO: implement
+                uint16_t len = spi_mcu.cdc_unget < 0 ? 0 : 1;
+                uint8_t c;
+                if (!len) {
+                    if (Comm_RecvByte(&c)) {
+                        spi_mcu.cdc_unget = c;
+                        len = 1;
+                    }
+                }
+                printf("nileswan/spi/mcu: USB available = %d\n", len);
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
                 spi_mcu_send_response(2, &len);
             } break;
             case MCU_SPI_CMD_ECHO: {
@@ -301,4 +321,5 @@ void nile_spi_mcu_reset(bool full, bool boot_mode) {
     }
     memset(&spi_mcu, 0, sizeof(spi_mcu));
     spi_mcu.boot_mode = boot_mode;
+    spi_mcu.cdc_unget = -1;
 }
