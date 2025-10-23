@@ -1,6 +1,7 @@
 #include "wswan.h"
 #include "memory.h"
 #include "comm.h"
+#include "rtc.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -181,6 +182,51 @@ uint8_t nile_spi_mcu_boot_exchange(uint8_t tx) {
     return rx;
 }
 
+static const uint8_t rtc_cmd_rx_size[16] = {0, 0, 1, 0, 7, 0, 3, 0, 2, 0, 2, 0, 0, 0, 0, 0};
+static const uint8_t rtc_cmd_tx_size[16] = {0, 0, 0, 1, 0, 7, 0, 3, 0, 2, 0, 2, 0, 0, 0, 0};
+
+static void rtc_transfer(uint8_t cmd, uint8_t* buf) {
+    GenericRTC *rtc = RTC_Get();
+    switch (cmd) {
+        case 4:
+            printf("nileswan/spi/mcu/rtc: write date/time\n");
+            rtc->year = buf[0];
+            rtc->mon  = buf[1];
+            rtc->mday = buf[2];
+            rtc->wday = buf[3];
+            rtc->hour = buf[4];
+            rtc->min  = buf[5];
+            rtc->sec  = buf[6];
+            break;
+        case 5:
+            printf("nileswan/spi/mcu/rtc: read date/time\n");
+            buf[0] = rtc->year;
+            buf[1] = rtc->mon;
+            buf[2] = rtc->mday;
+            buf[3] = rtc->wday;
+            buf[4] = rtc->hour;
+            buf[5] = rtc->min;
+            buf[6] = rtc->sec;
+            break;
+        case 6:
+            printf("nileswan/spi/mcu/rtc: write time\n");
+            rtc->hour = buf[0];
+            rtc->min  = buf[1];
+            rtc->sec  = buf[2];
+            break;
+        case 7:
+            printf("nileswan/spi/mcu/rtc: read time\n");
+            buf[0] = rtc->hour;
+            buf[1] = rtc->min;
+            buf[2] = rtc->sec;
+            break;
+        default:
+            printf("nileswan/spi/mcu/rtc: TODO: command %X\n", cmd);
+            memset(buf, 0, rtc_cmd_tx_size[cmd]);
+            break;
+    }
+}
+
 uint8_t nile_spi_mcu_exchange(uint8_t tx) {
     if (spi_mcu.boot_mode) {
         return nile_spi_mcu_boot_exchange(tx);
@@ -300,9 +346,16 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                 if (arg == 0) arg = 512;
                 if (spi_mcu.rx.pos < 2+arg) break;
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
-                memcpy(response, spi_mcu.rx.data, arg);
-                spi_buffer_pop(&spi_mcu.rx, NULL, arg);
+                spi_buffer_pop(&spi_mcu.rx, response, arg);
                 spi_mcu_send_response(arg, response);
+            } break;
+            case MCU_SPI_CMD_RTC_COMMAND: {
+                int rx_bytes = rtc_cmd_rx_size[arg & 0xF];
+                int tx_bytes = rtc_cmd_tx_size[arg & 0xF];
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                spi_buffer_pop(&spi_mcu.rx,response, rx_bytes);
+                rtc_transfer(arg & 0xF, response);
+                spi_mcu_send_response(tx_bytes, response);
             } break;
             default: {
                 printf("nileswan/spi/mcu: unknown command %02X %04X\n", cmd, arg);

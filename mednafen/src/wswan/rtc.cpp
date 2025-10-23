@@ -27,6 +27,7 @@
 */
 
 #include "wswan.h"
+#include "rtc.h"
 #include <mednafen/Time.h>
 #include <limits.h>
 
@@ -42,24 +43,6 @@ static uint8 Command;
 static uint8 CommandBuffer[7];
 static uint8 CommandIndex;
 static uint8 CommandCount;
-
-//template<bool century21st>
-struct GenericRTC
-{
- GenericRTC();
- void Init(const struct tm& toom);
- void Clock(void);
-
- bool BCDInc(uint8 &V, uint8 thresh, uint8 reset_val = 0x00);
-
- uint8 sec;
- uint8 min;
- uint8 hour;
- uint8 wday;
- uint8 mday;
- uint8 mon;
- uint8 year;
-};
 
 GenericRTC::GenericRTC()
 {
@@ -145,6 +128,11 @@ void GenericRTC::Clock(void)
 }
 
 static GenericRTC RTC;
+
+GenericRTC *RTC_Get(void)
+{
+    return &RTC;
+}
 
 void RTC_Write(uint8 A, uint8 V)
 {
