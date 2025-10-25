@@ -352,6 +352,7 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
             case MCU_SPI_CMD_RTC_COMMAND: {
                 int rx_bytes = rtc_cmd_rx_size[arg & 0xF];
                 int tx_bytes = rtc_cmd_tx_size[arg & 0xF];
+                if (spi_mcu.rx.pos < 2+rx_bytes) break;
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
                 spi_buffer_pop(&spi_mcu.rx,response, rx_bytes);
                 rtc_transfer(arg & 0xF, response);
