@@ -257,6 +257,22 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                 response[0] = 1;
                 spi_mcu_send_response(1, response);
             } break;
+            case MCU_SPI_CMD_ID: {
+                printf("nileswan/spi/mcu: query MCU UID\n");
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                for (int i = 0; i < 12; i++)
+                    response[i] = i;
+                spi_mcu_send_response(12, response);
+            } break;
+            case MCU_SPI_CMD_VERSION: {
+                printf("nileswan/spi/mcu: query MCU firmware version\n");
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                response[0] = NILE_EMULATED_MCU_MAJOR;
+                response[1] = NILE_EMULATED_MCU_MAJOR >> 8;
+                response[2] = NILE_EMULATED_MCU_MINOR;
+                response[3] = NILE_EMULATED_MCU_MINOR >> 8;
+                spi_mcu_send_response(4, response);
+            } break;
             case MCU_SPI_CMD_EEPROM_MODE: {
                 printf("nileswan/spi/mcu: set EEPROM mode to %d\n", arg);
                 spi_mcu_persistent.eeprom_mode = arg;
@@ -312,14 +328,14 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                     if (!Comm_RecvByte(response + len))
                         break;
                 }
-                printf("nileswan/spi/mcu: USB read %d bytes, found %d\n", arg, len);
+                printf("nileswan/spi/mcu: USB serial read %d bytes, found %d\n", arg, len);
                 spi_mcu_send_response(len, response);
             } break;
             case MCU_SPI_CMD_USB_CDC_WRITE: {
                 if (arg == 0) arg = 512;
                 if (spi_mcu.rx.pos < 2+arg) break;
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
-                printf("nileswan/spi/mcu: USB write %d bytes\n", arg);
+                printf("nileswan/spi/mcu: USB serial write %d bytes\n", arg);
                 int len = 0;
                 for (; len < arg; len++) {
                     if (!Comm_SendByte(spi_mcu.rx.data[len]))
@@ -338,9 +354,15 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                         len = 1;
                     }
                 }
-                printf("nileswan/spi/mcu: USB available = %d\n", len);
+                printf("nileswan/spi/mcu: USB serial available = %d\n", len);
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
                 spi_mcu_send_response(2, &len);
+            } break;
+            case MCU_SPI_CMD_USB_CDC_FLUSH: {
+                spi_mcu.cdc_unget = -1;
+                printf("nileswan/spi/mcu: USB serial flush\n");
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                spi_mcu_send_response(0, response);
             } break;
             case MCU_SPI_CMD_ECHO: {
                 if (arg == 0) arg = 512;
@@ -357,6 +379,27 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                 spi_buffer_pop(&spi_mcu.rx,response, rx_bytes);
                 rtc_transfer(arg & 0xF, response);
                 spi_mcu_send_response(tx_bytes, response);
+            } break;
+            case MCU_SPI_CMD_ACCEL_POLL: {
+                if (arg) {
+                    printf("nileswan/spi/mcu: stub: enable accelerometer polling, %d Hz\n", arg);
+                } else {
+                    printf("nileswan/spi/mcu: stub: disable accelerometer polling\n");
+                }
+                response[0] = 1;
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                spi_mcu_send_response(1, response);
+            } break;
+            case MCU_SPI_CMD_ACCEL_READ: {
+                printf("nileswan/spi/mcu: stub: read accelerometer position\n");
+                response[0] = 0x00;
+                response[1] = 0x00;
+                response[2] = 0x00;
+                response[3] = 0x04;
+                response[4] = 0x00;
+                response[5] = 0x00;
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                spi_mcu_send_response(6, response);
             } break;
             default: {
                 printf("nileswan/spi/mcu: unknown command %02X %04X\n", cmd, arg);

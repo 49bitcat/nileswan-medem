@@ -6,6 +6,10 @@
 #include <stdint.h>
 
 /* Configuration */
+#define NILE_EMULATED_BOARD_REVISION 0x02
+#define NILE_EMULATED_MCU_MAJOR 1
+#define NILE_EMULATED_MCU_MINOR 0
+
 #define MCU_MAX_PER_USB_CDC_PACKET 128
 
 #define TF_STOP_TRANSFER_BUSY_DELAY_BYTES 8

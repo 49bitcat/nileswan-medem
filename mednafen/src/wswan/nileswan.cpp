@@ -12,7 +12,6 @@
 
 #define PSRAM_MAX_BANK 255
 #define SRAM_MAX_BANK 7
-#define NILE_EMULATED_BOARD_REVISION 0x02
 
 namespace MDFN_IEN_WSWAN
 {
@@ -248,8 +247,9 @@ static void pow_cnt_update(uint8_t new_value) {
         nile_spi_tf_reset(true);
     }
     if (!(old_value & NILE_POW_MCU_RESET) && (new_value & NILE_POW_MCU_RESET)) {
-        printf("nileswan/mcu: reset\n");
-        nile_spi_mcu_reset(true, (new_value & NILE_POW_MCU_BOOT0) != 0);
+        bool bootloader_mode = (new_value & NILE_POW_MCU_BOOT0) != 0;
+        printf("nileswan/mcu: reset, in %s mode\n", bootloader_mode ? "bootloader" : "native");
+        nile_spi_mcu_reset(true, bootloader_mode);
     }
 }
 
