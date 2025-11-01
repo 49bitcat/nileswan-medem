@@ -146,7 +146,7 @@ static INLINE void WriteMem(uint32 A, uint8 V)
     }
   }
   else if(sram_size)
-   wsSRAM[address & (rom_size - 1)] = V;
+   wsSRAM[address & (sram_size - 1)] = V;
  }
 }	
 
