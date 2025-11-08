@@ -21,7 +21,7 @@ void WSwan_MemoryKill(void) MDFN_COLD;
 void WSwan_MemoryLoadNV(void);
 void WSwan_MemorySaveNV(void);
 
-
+void WSwan_UpdateButtonReadLatch(void);
 void WSwan_CheckSoundDMA(void);
 void WSwan_MemoryStateAction(StateMem *sm, const unsigned load, const bool data_only);
 void WSwan_MemoryReset(void);

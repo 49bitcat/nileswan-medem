@@ -98,7 +98,8 @@ static void Emulate(EmulateSpecStruct *espec)
   WSwan_SetSoundRate(espec->SoundRate);
 
  WSButtonStatus = MDFN_de16lsb(PortDeviceData);
- 
+ WSwan_UpdateButtonReadLatch();
+
  MDFNMP_ApplyPeriodicCheats();
 
  while(!wsExecuteLine(espec->surface, espec->skip))

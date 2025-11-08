@@ -45,6 +45,7 @@ static uint32 sram_size;
 uint32 eeprom_size;
 
 static uint8 ButtonWhich, ButtonReadLatch;
+static uint16 OldButtonStatus;
 
 static uint32 DMASource;
 static uint16 DMADest;
@@ -433,16 +434,7 @@ static INLINE void WritePort(uint32 IOPort, uint8 V)
 	case 0xB3: Comm_Write(IOPort, V); break;
 
 	case 0xb5: ButtonWhich = V >> 4;
-		   ButtonReadLatch = 0;
-
-                   if(ButtonWhich & 0x4) /*buttons*/
-		    ButtonReadLatch |= ((WSButtonStatus >> 8) << 1) & 0xF;
-
-		   if(ButtonWhich & 0x2) /* H/X cursors */
-		    ButtonReadLatch |= WSButtonStatus & 0xF;
-
-		   if(ButtonWhich & 0x1) /* V/Y cursors */
-		    ButtonReadLatch |= (WSButtonStatus >> 4) & 0xF;
+	           WSwan_UpdateButtonReadLatch();
                    break;
 
    case 0xC0: BankSelector[0] = V & 0xF; break;
@@ -771,6 +763,22 @@ static void PutAddressSpaceBytes(const char *name, uint32 Address, uint32 Length
 
   PutAddressSpaceBytes("physical", phys_address, Length, Granularity, hl, Buffer);
  }
+}
+
+void WSwan_UpdateButtonReadLatch()
+{
+ ButtonReadLatch = 0;
+ if(ButtonWhich & 0x4) /* buttons */
+  ButtonReadLatch |= ((WSButtonStatus >> 8) << 1) & 0xF;
+ if(ButtonWhich & 0x2) /* H/X cursors */
+  ButtonReadLatch |= WSButtonStatus & 0xF;
+ if(ButtonWhich & 0x1) /* V/Y cursors */
+  ButtonReadLatch |= (WSButtonStatus >> 4) & 0xF;
+
+ // FIXME: This does not emulate the latch correctly.
+ if(!OldButtonStatus && WSButtonStatus)
+  WSwan_Interrupt(WSINT_KEY_PRESS);
+ OldButtonStatus = WSButtonStatus;
 }
 
 uint32 WSwan_MemoryGetRegister(const unsigned int id, char *special, const uint32 special_len)
