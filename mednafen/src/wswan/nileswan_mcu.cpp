@@ -404,6 +404,10 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
             default: {
                 printf("nileswan/spi/mcu: unknown command %02X %04X\n", cmd, arg);
                 spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                // send 0x0001 for error
+                response[0] = 0x01;
+                response[1] = 0x00;
+                spi_buffer_push(&spi_mcu.tx, response, 2);
             } break;
         }
     }
