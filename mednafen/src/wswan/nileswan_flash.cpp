@@ -19,6 +19,7 @@ struct {
 
     uint8_t mode;
     uint32_t position;
+    bool sleeping;
 } spi_flash;
 FILE *file_flash;
 
@@ -54,6 +55,11 @@ uint8_t nile_spi_flash_exchange(uint8_t tx) {
     } else {
         spi_buffer_push(&spi_flash.rx, &tx, 1);
         spi_buffer_pop(&spi_flash.tx, &rx, 1);
+
+        if (spi_flash.sleeping && spi_flash.rx.data[0] != NILE_FLASH_CMD_WAKE_ID) {
+            printf("nileswan/spi/flash: !! byte %02X sent while asleep !!\n", spi_flash.rx.data[0]);
+            return 0xFF;
+        }
 
         switch (spi_flash.rx.data[0]) {
             case NILE_FLASH_CMD_ERASE_4K:
@@ -102,6 +108,7 @@ uint8_t nile_spi_flash_exchange(uint8_t tx) {
                 break;
             case NILE_FLASH_CMD_WAKE_ID:
                 printf("nileswan/spi/flash: waking\n");
+                spi_flash.sleeping = false;
                 spi_buffer_pop(&spi_flash.rx, NULL, 1);
                 spi_buffer_push(&spi_flash.tx, NULL, 3);
                 spi_buffer_push(&spi_flash.tx, &spi_flash_dev_id, 1);
@@ -118,6 +125,7 @@ uint8_t nile_spi_flash_exchange(uint8_t tx) {
                 break;
             case NILE_FLASH_CMD_SLEEP:
                 printf("nileswan/spi/flash: sleeping\n");
+                spi_flash.sleeping = true;
                 spi_buffer_pop(&spi_flash.rx, NULL, 1);
                 break;
             default:
