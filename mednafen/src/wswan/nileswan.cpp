@@ -22,6 +22,7 @@ using namespace MDFN_IEN_WSWAN;
 
 extern FILE *file_flash;
 extern FILE *file_tf;
+extern uint64_t file_tf_size;
 
 static uint16_t bank_rom0, bank_rom1, bank_romL, bank_ram;
 static uint8_t flash_enable;
@@ -144,12 +145,20 @@ void nileswan_quit(void) {
     free(nile_sram);
 }
 
-void nileswan_open_spi(const char *path) {
+bool nileswan_open_spi(const char *path) {
     file_flash = fopen(path, "r+b");
+    return file_flash != NULL;
 }
 
-void nileswan_open_tf(const char *path) {
+bool nileswan_open_tf(const char *path) {
     file_tf = fopen(path, "r+b");
+    if (file_tf != NULL)
+        return false;
+
+    fseek(file_tf, 0, SEEK_END);
+    file_tf_size = ftell(file_tf);
+    fseek(file_tf, 0, SEEK_SET);
+    return true;
 }
 
 /* === IO handling === */
@@ -395,7 +404,7 @@ void nileswan_io_write(uint32_t index, uint8_t value) {
         } break;
         case IO_NILE_EMU_CNT:
             if(!(nile_pow_cnt & NILE_POW_IO_NILE)) break;
-            nile_emu_cnt = value & 0x1F;
+            nile_emu_cnt = value & 0x3F;
             break;
     }
 }
@@ -419,7 +428,9 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
         physical_bank = (bank_romL << 4) | cpu_bank;
         mask_bit = 0;
     }
+
     *buffer = NULL;
+
     if (is_ram) {
 	if (!mask_bit || (nile_bank_mask & mask_bit))
             physical_bank &= (nile_bank_mask >> 12);
@@ -459,6 +470,19 @@ static inline void resolve_bank(uint32_t address, uint8_t **buffer, bool write, 
 uint8_t nileswan_cart_read(uint32_t index, bool is_debugger) {
     uint8_t *buffer;
     resolve_bank(index, &buffer, false, is_debugger);
+
+    uint8_t cpu_bank = (index >> 16) & 0xF;
+    if ((cpu_bank == 2 || cpu_bank == 3) && (nile_emu_cnt & 0x20) && !is_debugger) {
+        uint8_t *write_buffer;
+
+        bool old_flash_enable = flash_enable;
+        flash_enable = true;
+        resolve_bank((index & 0xFFFF) | 0x10000, &write_buffer, false, false);
+        flash_enable = old_flash_enable;
+
+        *write_buffer = *buffer;
+    }
+
     if ((nile_emu_cnt & NILE_EMU_FLASH_FSM) && flash_enable && (index & 0xF0000) == 0x10000) {
       if (nile_ww_state == WW_STATE_FAST)
         return 0x00;

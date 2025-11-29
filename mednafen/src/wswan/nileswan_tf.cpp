@@ -23,10 +23,12 @@ struct {
 
     uint8_t status;
 
+    bool is_acmd;
     bool reading;
     uint8_t writing;
 } spi_tf;
 FILE *file_tf;
+uint64_t file_tf_size;
 
 uint8_t nile_spi_tf_exchange(uint8_t tx) {
     uint8_t rx;
@@ -114,7 +116,19 @@ uint8_t nile_spi_tf_exchange(uint8_t tx) {
             spi_tf.rx.data[4];
         uint32_t response_length = 1;
         response[0] = 0;
-        switch (cmd & 0x3F) {
+        if (spi_tf.is_acmd) {
+            spi_tf.is_acmd = false;
+            switch (cmd & 0x3F) {
+                case 41:
+                    printf("nileswan/spi/tf: init (acmd)\n");
+                    spi_tf.status = 0x00;
+                    break;
+                default:
+                    printf("nileswan/spi/tf: unknown acommand %d\n", cmd & 0x3F);
+                    response[0] |= TF_ILLEGAL_COMMAND;
+                    break;
+            }
+        } else switch (cmd & 0x3F) {
             case 0:
                 printf("nileswan/spi/tf: reset\n");
                 spi_tf.status = 0x01;
@@ -131,6 +145,20 @@ uint8_t nile_spi_tf_exchange(uint8_t tx) {
                 response[4] = arg & 0xFF;
                 response_length = 5;
                 break;
+            case 9: {
+                printf("nileswan/spi/tf: read csd\n");
+                response[0] = 0x00;
+                response[1] = 0xFE;
+                // FIXME: populate full CSD
+                memset(response + 2, 0, 16);
+                response[2] = 0x40;
+                response[5] = 0x32;
+                uint32_t csd_size = (file_tf_size + 524287) / 524288;
+                response[11] = csd_size;
+                response[10] = csd_size >> 8;
+                response[9] = (csd_size >> 16) & 0x3f;
+                response_length = 18;
+            } break;
             case 12:
                 printf("nileswan/spi/tf: stop reading\n");
                 spi_tf.reading = false;
@@ -176,6 +204,17 @@ uint8_t nile_spi_tf_exchange(uint8_t tx) {
                     fseek(file_tf, arg, SEEK_SET);
                 }
                 spi_tf.writing = (cmd & 0x3F) == 25 ? SPI_TF_WRITING_MULTIPLE : SPI_TF_WRITING_SINGLE;
+            } break;
+            case 55: {
+                spi_tf.is_acmd = true;
+            } break;
+            case 58: {
+                printf("nileswan/spi/tf: read ocr\n");
+                response[1] = 0x80;
+                response[2] = 0xFF;
+                response[3] = 0x80;
+                response[4] = 0x00;
+                response_length = 5;
             } break;
             default:
                 printf("nileswan/spi/tf: unknown command %d\n", cmd & 0x3F);
