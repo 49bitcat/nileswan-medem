@@ -152,7 +152,7 @@ bool nileswan_open_spi(const char *path) {
 
 bool nileswan_open_tf(const char *path) {
     file_tf = fopen(path, "r+b");
-    if (file_tf != NULL)
+    if (file_tf == NULL)
         return false;
 
     fseek(file_tf, 0, SEEK_END);

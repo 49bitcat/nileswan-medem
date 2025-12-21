@@ -119,6 +119,10 @@ uint8_t nile_spi_tf_exchange(uint8_t tx) {
         if (spi_tf.is_acmd) {
             spi_tf.is_acmd = false;
             switch (cmd & 0x3F) {
+                case 23:
+                    printf("nileswan/spi/tf: set block count = %d (acmd)\n", arg);
+                    spi_tf.status = 0x00;
+                    break;
                 case 41:
                     printf("nileswan/spi/tf: init (acmd)\n");
                     spi_tf.status = 0x00;
@@ -154,6 +158,7 @@ uint8_t nile_spi_tf_exchange(uint8_t tx) {
                 response[2] = 0x40;
                 response[5] = 0x32;
                 uint32_t csd_size = (file_tf_size + 524287) / 524288;
+                printf("%d\n", csd_size);
                 response[11] = csd_size;
                 response[10] = csd_size >> 8;
                 response[9] = (csd_size >> 16) & 0x3f;
