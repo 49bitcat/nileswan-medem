@@ -118,10 +118,10 @@ void nile_fpga_reset(void) {
     memset(&nile_ipc, 0, sizeof(nile_ipc));
 }
 
-bool nileswan_init(void) {
+bool nileswan_init(bool hard_reset) {
     nile_fpga_core = -1;
     nile_fpga_reset();
-    nile_spi_mcu_reset(true, false);
+    nile_spi_mcu_reset(hard_reset, false);
     nile_spi_flash_reset(true);
     nile_spi_tf_reset(true);
 
@@ -258,7 +258,7 @@ static void pow_cnt_update(uint8_t new_value) {
     if (!(old_value & NILE_POW_MCU_RESET) && (new_value & NILE_POW_MCU_RESET)) {
         bool bootloader_mode = (new_value & NILE_POW_MCU_BOOT0) != 0;
         printf("nileswan/mcu: reset, in %s mode\n", bootloader_mode ? "bootloader" : "native");
-        nile_spi_mcu_reset(true, bootloader_mode);
+        nile_spi_mcu_reset(false, bootloader_mode);
     }
 }
 

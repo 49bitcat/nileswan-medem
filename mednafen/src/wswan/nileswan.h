@@ -28,7 +28,7 @@ extern uint32_t nile_psram_size, nile_sram_size;
 extern uint8_t nile_ipc[NILE_IPC_SIZE];
 
 bool nileswan_is_active(void);
-bool nileswan_init(void);
+bool nileswan_init(bool hard_reset);
 void nileswan_quit(void);
 bool nileswan_open_spi(const char *path);
 bool nileswan_open_tf(const char *path);
