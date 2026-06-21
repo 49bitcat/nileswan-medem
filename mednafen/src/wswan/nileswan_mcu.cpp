@@ -273,6 +273,17 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                 response[3] = NILE_EMULATED_MCU_MINOR >> 8;
                 spi_mcu_send_response(4, response);
             } break;
+            case MCU_SPI_CMD_INFO: {
+                printf("nileswan/spi/mcu: query MCU status\n");
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                response[0] = 0x0F;
+                response[1] = 0;
+                response[2] = 0x1F;
+                response[3] = 0;
+                response[4] = 3725 & 0xFF;
+                response[5] = 3725 >> 8;
+                spi_mcu_send_response(6, response);
+            } break;
             case MCU_SPI_CMD_EEPROM_MODE: {
                 printf("nileswan/spi/mcu: set EEPROM mode to %d\n", arg);
                 spi_mcu_persistent.eeprom_mode = arg;
@@ -371,6 +382,12 @@ uint8_t nile_spi_mcu_exchange(uint8_t tx) {
                 spi_buffer_pop(&spi_mcu.rx, response, arg);
                 spi_mcu_send_response(arg, response);
             } break;
+            /* case MCU_SPI_CMD_WRITE_REG: {
+                if (spi_mcu.rx.pos < 4) break;
+                spi_buffer_pop(&spi_mcu.rx, NULL, 2);
+                spi_buffer_pop(&spi_mcu.rx, response, arg);
+                spi_mcu_send_response(arg, response);
+            } break; */
             case MCU_SPI_CMD_RTC_COMMAND: {
                 int rx_bytes = rtc_cmd_rx_size[arg & 0xF];
                 int tx_bytes = rtc_cmd_tx_size[arg & 0xF];
